@@ -57,21 +57,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const { data: customerRecord } = await supabase
-        .from("customers")
+      const { data: adminRecord } = await supabase
+        .from("admin_users")
         .select("id")
-        .eq("id", userData.id)
+        .eq("auth_user_id", userData.id)
         .maybeSingle()
 
-      if (customerRecord) {
-        setState({
-          user: { id: userData.id, email: userData.email || "", name: (userData.user_metadata?.name as string | undefined) || undefined },
-          isAuthenticated: true,
-          loading: false,
-        })
-      } else {
+      if (adminRecord) {
         setState({ user: null, isAuthenticated: false, loading: false })
+        return
       }
+
+      setState({
+        user: { id: userData.id, email: userData.email || "", name: (userData.user_metadata?.name as string | undefined) || undefined },
+        isAuthenticated: true,
+        loading: false,
+      })
     } catch {
       setState({ user: null, isAuthenticated: false, loading: false })
     }

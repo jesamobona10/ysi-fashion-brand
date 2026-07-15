@@ -1,7 +1,6 @@
 -- YSI E-commerce: Storage Bucket Setup
 -- Run this in the Supabase SQL Editor.
--- Creates/updates the product-images bucket for admin image uploads.
--- The corresponding RLS policies are already in migration 00001.
+-- Creates/updates the product-images bucket with public access.
 -- Uses on conflict DO UPDATE so it also fixes an existing non-public bucket.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
