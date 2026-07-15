@@ -9,6 +9,7 @@ import { formatPrice, cn } from "@/lib/utils"
 import { fadeUp } from "@/lib/motion"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/providers/cart-provider"
+import { useToast } from "@/components/ui/toast"
 import {
   Heart, Share2, ChevronLeft, ChevronRight, Star, Minus, Plus, Truck, Shield, RotateCcw, MessageCircle,
 } from "lucide-react"
@@ -64,6 +65,7 @@ export default function ProductPage() {
   const [activeTab, setActiveTab] = useState<"details" | "reviews">("details")
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 })
   const { addItem, toggleCart } = useCart()
+  const { toast } = useToast()
 
   const handleAddToCart = () => {
     if (!product) return
@@ -72,6 +74,7 @@ export default function ProductPage() {
       quantity, size: selectedSize || undefined, color: selectedColor || undefined, slug: product.slug,
     })
     toggleCart()
+    toast({ title: "Added to cart", description: product.name, variant: "success" })
   }
 
   useEffect(() => {

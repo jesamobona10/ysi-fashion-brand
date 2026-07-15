@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
+import { useToast } from "@/components/ui/toast"
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -21,6 +22,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [confirmEmail, setConfirmEmail] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({ name: "", email: "", password: "" })
+  const { toast } = useToast()
 
   const validate = (): boolean => {
     const errors = { name: "", email: "", password: "" }
@@ -59,11 +61,14 @@ export default function RegisterPage() {
     setSubmitting(false)
     if (result.ok) {
       if (result.accountCreated) {
+        toast({ title: "Account created!", variant: "success" })
         router.push("/account")
       } else {
+        toast({ title: "Check your email", description: "We sent a confirmation link.", variant: "info" })
         setConfirmEmail(true)
       }
     } else {
+      toast({ title: "Registration failed", description: result.error || "Please try again.", variant: "error" })
       setError(result.error || "Registration failed")
       if (result.error?.toLowerCase().includes("rate limit") || result.error?.toLowerCase().includes("too many")) {
         setCooldown(60)

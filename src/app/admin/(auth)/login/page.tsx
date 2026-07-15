@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/toast"
 
 export default function AdminLoginPage() {
   const { isAuthenticated, isAdmin, loading, login } = useAdminAuth()
@@ -15,6 +16,7 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!loading && isAuthenticated && isAdmin) router.replace("/admin")
@@ -37,8 +39,10 @@ export default function AdminLoginPage() {
     const ok = await login(email, password)
     setSubmitting(false)
     if (ok) {
+      toast({ title: "Signed in", variant: "success" })
       router.replace("/admin")
     } else {
+      toast({ title: "Access denied", description: "Check your credentials or contact a super-admin.", variant: "error" })
       setError("Access denied. Check your credentials or contact a super-admin.")
     }
   }

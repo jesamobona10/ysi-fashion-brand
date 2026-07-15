@@ -8,6 +8,7 @@ import { User, Package, LogOut, Loader2, ChevronRight, Clock } from "lucide-reac
 import { useAuth } from "@/components/auth/auth-provider"
 import { supabase } from "@/lib/supabase/client"
 import { formatPrice } from "@/lib/utils"
+import { useToast } from "@/components/ui/toast"
 
 interface OrderItem {
   name: string; quantity: number; price: number; size?: string; color?: string
@@ -42,6 +43,7 @@ export default function AccountPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -87,6 +89,7 @@ export default function AccountPage() {
 
   const handleLogout = async () => {
     await logout()
+    toast({ title: "Signed out", variant: "info" })
     router.push("/")
   }
 

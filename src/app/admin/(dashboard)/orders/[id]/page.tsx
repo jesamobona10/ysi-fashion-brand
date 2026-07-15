@@ -8,6 +8,7 @@ import { formatPrice, cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MapPin, Phone, Mail, CreditCard, Truck } from "lucide-react"
 import { updateOrderStatus } from "@/actions"
+import { useToast } from "@/components/ui/toast"
 
 const statusFlow = ["pending", "confirmed", "tailoring", "quality-check", "shipped", "delivered"]
 
@@ -132,6 +133,7 @@ export default function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!params.id) return
@@ -147,8 +149,10 @@ export default function AdminOrderDetailPage() {
     setUpdating(true)
     const result = await updateOrderStatus(order.id, newStatus)
     if (result.error) {
+      toast({ title: "Status update failed", description: result.error, variant: "error" })
       setError(result.error)
     } else {
+      toast({ title: `Order ${newStatus.replace("-", " ")}`, variant: "success" })
       setOrder((prev) => prev ? { ...prev, status: newStatus, timeline: [...prev.timeline, { status: newStatus, date: new Date().toISOString() }] } : prev)
     }
     setUpdating(false)

@@ -8,6 +8,7 @@ import { staggerContainer, fadeUp } from "@/lib/motion"
 import { Button } from "@/components/ui/button"
 import { Package, AlertTriangle, CheckCircle, RefreshCw, Plus, Minus } from "lucide-react"
 import { restockProduct } from "@/actions"
+import { useToast } from "@/components/ui/toast"
 
 interface InventoryItem {
   id: string
@@ -71,6 +72,7 @@ export default function AdminInventoryPage() {
   const [loading, setLoading] = useState(true)
   const [restockInput, setRestockInput] = useState<Record<string, number>>({})
   const [showLog, setShowLog] = useState<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchProducts().then((productsData) => {
@@ -92,10 +94,16 @@ export default function AdminInventoryPage() {
 
   const handleRestock = useCallback(async (productId: string) => {
     const qty = restockInput[productId] || 0
-    if (qty <= 0) return
+    if (qty <= 0) {
+      toast({ title: "Enter a quantity to restock", variant: "info" })
+      return
+    }
 
     const result = await restockProduct(productId, qty)
-    if (result.error) return
+    if (result.error) {
+      toast({ title: "Restock failed", description: result.error, variant: "error" })
+      return
+    }
 
     setItems((prev) =>
       prev.map((item) =>
@@ -117,7 +125,8 @@ export default function AdminInventoryPage() {
     }
     setLogs((prev) => [...prev, newLog])
     setRestockInput((prev) => ({ ...prev, [productId]: 0 }))
-  }, [restockInput])
+    toast({ title: `Restocked +${qty} units`, variant: "success" })
+  }, [restockInput, toast])
 
   if (loading) {
     return (

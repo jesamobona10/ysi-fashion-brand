@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
+import { useToast } from "@/components/ui/toast"
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" })
+  const { toast } = useToast()
 
   const validate = (): boolean => {
     const errors = { email: "", password: "" }
@@ -41,8 +43,10 @@ export default function LoginPage() {
     const result = await login(email, password)
     setSubmitting(false)
     if (result.ok) {
+      toast({ title: "Welcome back!", variant: "success" })
       router.push("/account")
     } else {
+      toast({ title: "Login failed", description: result.error || "Invalid email or password", variant: "error" })
       setError(result.error || "Invalid email or password")
     }
   }

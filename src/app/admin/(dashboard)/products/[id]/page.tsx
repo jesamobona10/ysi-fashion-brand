@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { ArrowLeft, Save, Upload, X, Loader2 } from "lucide-react"
 import { toSlug } from "@/lib/slug"
 import { ALLOWED_CATEGORIES, ALLOWED_GENDERS, ALLOWED_SIZES, ALLOWED_COLORS, ALLOWED_SEASONS, ALLOWED_OCCASIONS } from "@/lib/validation"
+import { useToast } from "@/components/ui/toast"
 
 interface ProductForm {
   id?: string
@@ -139,6 +140,7 @@ export default function AdminProductEditPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!isNew) {
@@ -164,6 +166,7 @@ export default function AdminProductEditPage() {
     const filePath = `products/${safeName}`
     const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, file)
     if (uploadError) throw uploadError
+    toast({ title: "Image uploaded", variant: "success" })
     const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(filePath)
     return publicUrl
   }
@@ -176,7 +179,9 @@ export default function AdminProductEditPage() {
     try {
       const publicUrl = await uploadToStorage(file)
       update("images", [...form.images, publicUrl])
+      toast({ title: "Image uploaded", variant: "success" })
     } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : String(err), variant: "error" })
       setError(`Image upload failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSaving(false)
@@ -188,9 +193,14 @@ export default function AdminProductEditPage() {
     const url = form.images[index]
     if (url?.includes("supabase.co/storage/v1/object/public/product-images/")) {
       const path = url.split("product-images/")[1].split("?")[0]
-      await supabase.storage.from("product-images").remove([path])
+      const { error: removeError } = await supabase.storage.from("product-images").remove([path])
+      if (removeError) {
+        toast({ title: "Failed to remove image", variant: "error" })
+        return
+      }
     }
     update("images", form.images.filter((_, i) => i !== index))
+    toast({ title: "Image removed", variant: "success" })
   }
 
   const handleSave = async () => {
@@ -223,9 +233,11 @@ export default function AdminProductEditPage() {
         if (updateError) throw updateError
       }
 
+      toast({ title: isNew ? "Product created" : "Product updated", variant: "success" })
       setSaved(true)
       setTimeout(() => router.push("/admin/products"), 1500)
     } catch (err) {
+      toast({ title: "Save failed", description: String(err), variant: "error" })
       setError(String(err))
     } finally {
       setSaving(false)

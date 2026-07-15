@@ -358,10 +358,12 @@ export default function ShopPage() {
 
 function ProductCard({ product, view }: { product: Product; view: "grid" | "list" }) {
   const { addItem, toggleCart } = useCart()
+  const { toast } = useToast()
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     addItem({ id: product.id, name: product.name, price: product.price, image: product.images[0], slug: product.slug })
     toggleCart()
+    toast({ title: "Added to cart", description: product.name, variant: "success" })
   }
 
   if (view === "list") {

@@ -9,6 +9,7 @@ import { DataTable, type Column } from "@/components/admin/data-table"
 import { Button } from "@/components/ui/button"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { deleteProductWithImages } from "@/actions"
+import { useToast } from "@/components/ui/toast"
 
 interface ProductRow {
   id: string
@@ -79,6 +80,7 @@ export default function AdminProductsPage() {
   const [showDelete, setShowDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchProducts().then((data) => {
@@ -90,16 +92,23 @@ export default function AdminProductsPage() {
   const handleToggleStock = useCallback(async (id: string, currentInStock: boolean) => {
     const newInStock = !currentInStock
     setLocalProducts((prev) => prev.map((x) => (x.id === id ? { ...x, inStock: newInStock } : x)))
-    await supabase.from("products").update({ in_stock: newInStock }).eq("id", id)
-  }, [])
+    const { error } = await supabase.from("products").update({ in_stock: newInStock }).eq("id", id)
+    if (error) {
+      toast({ title: "Failed to update stock", variant: "error" })
+    } else {
+      toast({ title: newInStock ? "Product back in stock" : "Product marked out of stock", variant: "success" })
+    }
+  }, [toast])
 
   const handleDelete = useCallback(async () => {
     if (!showDelete) return
     setDeleting(true)
     const result = await deleteProductWithImages(showDelete)
     if (result.error) {
+      toast({ title: "Delete failed", description: result.error, variant: "error" })
       setError(result.error)
     } else {
+      toast({ title: "Product deleted", variant: "success" })
       setLocalProducts((prev) => prev.filter((p) => p.id !== showDelete))
     }
     setShowDelete(null)

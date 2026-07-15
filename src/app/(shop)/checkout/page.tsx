@@ -9,6 +9,7 @@ import { useCart } from "@/components/providers/cart-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { formatPrice } from "@/lib/utils"
 import { isValidEmail, isValidPhone, ALLOWED_COUNTRIES, sanitizeString } from "@/lib/validation"
+import { useToast } from "@/components/ui/toast"
 
 const paymentMethods = [
   { value: "cash-on-delivery", label: "Cash on Delivery", desc: "Pay when your order arrives" },
@@ -36,6 +37,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const { toast } = useToast()
 
   const validate = (): boolean => {
     const errors: FieldErrors = {}
@@ -97,8 +99,10 @@ export default function CheckoutPage() {
       }
 
       clearCart()
+      toast({ title: "Order placed!", description: `Your order ${result.orderNumber} has been placed successfully.`, variant: "success" })
       router.push(`/checkout/confirmation?order=${result.orderNumber}`)
     } catch (err) {
+      toast({ title: "Order failed", description: String(err), variant: "error" })
       setError(String(err))
     } finally {
       setSubmitting(false)

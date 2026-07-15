@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Save, Check, Loader2 } from "lucide-react";
 import { validateSettings, sanitizeString, isValidEmail, isValidPhone } from "@/lib/validation";
+import { useToast } from "@/components/ui/toast";
 
 interface StoreSettings {
   name: string;
@@ -41,6 +42,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     setStore(loadSaved());
@@ -80,8 +82,10 @@ export default function AdminSettingsPage() {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(sanitized));
       setStore(sanitized);
       setSaved(true);
+      toast({ title: "Settings saved", variant: "success" });
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
+      toast({ title: "Save failed", description: String(e), variant: "error" });
       setError(String(e));
     } finally {
       setSaving(false);
