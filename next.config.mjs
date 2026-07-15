@@ -2,7 +2,7 @@ const csp = [
   `default-src 'self'`,
   `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
   `style-src 'self' 'unsafe-inline'`,
-  `img-src 'self' data: blob: https://images.unsplash.com https://i.pravatar.cc`,
+  `img-src 'self' data: blob: https://images.unsplash.com https://i.pravatar.cc https://ui-avatars.com https://*.supabase.co`,
   `font-src 'self' data:`,
   `connect-src 'self' https://*.supabase.co`,
   `frame-src 'self'`,
@@ -23,6 +23,14 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "i.pravatar.cc",
+      },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
       },
     ],
   },
