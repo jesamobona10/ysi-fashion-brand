@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ysi-iota.vercel.app"),
   title: "YSI — YUTY_STYLEDIT | Styling You With Finesse",
   description:
     "YSI (YUTY_STYLEDIT) — Premium tailoring, bespoke craftsmanship, and ready-to-wear collections designed to elevate every occasion. Styling You With Finesse.",

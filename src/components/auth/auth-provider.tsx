@@ -52,7 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase.auth.getUser(accessToken)
       const userData = data?.user
-      if (userData && !error) {
+      if (!userData || error) {
+        setState({ user: null, isAuthenticated: false, loading: false })
+        return
+      }
+
+      const { data: customerRecord } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("id", userData.id)
+        .maybeSingle()
+
+      if (customerRecord) {
         setState({
           user: { id: userData.id, email: userData.email || "", name: (userData.user_metadata?.name as string | undefined) || undefined },
           isAuthenticated: true,
