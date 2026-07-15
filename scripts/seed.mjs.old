@@ -1,0 +1,136 @@
+import { createHash } from "crypto"
+
+const URL = "https://mmvkcrcbrqfuwpcprqxs.supabase.co"
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdmtjcmNicnFmdXdwY3BycXhzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ4Mzk2NiwiZXhwIjoyMDk1MDU5OTY2fQ.-ilqNDAmb1MHqgy4dOpq4NtdZruQ_PNMTijbfpfXfkQ"
+const H = { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` }
+
+const uuid = (s) => {
+  const h = createHash("md5").update(s).digest("hex")
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function insert(table, body) {
+  const r = await fetch(`${URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: { ...H, Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify(body),
+  })
+  const ct = r.headers.get("content-type") || ""
+  const t = ct.includes("json") ? JSON.stringify(await r.json()).slice(0, 100) : (await r.text()).slice(0, 100)
+  return { ok: r.ok, status: r.status, text: t }
+}
+
+const productsData = [
+  { name: "The Executive Tailored Blazer", slug: "executive-tailored-blazer", category: "Bespoke", gender: "men", price: 450000, original_price: 520000, description: "Handcrafted from premium Italian wool, this bespoke blazer embodies refined sophistication. Featuring a structured silhouette, notch lapels, and pick-stitch detailing.", images: ["https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?w=800&q=80", "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80"], fabric: "Italian Wool Blend", sizes: ["38","40","42","44","46"], colors: ["Jet Black","Navy","Charcoal"], in_stock: true, stock_qty: 15, low_stock_threshold: 3, rating: 4.9, review_count: 124, is_bestseller: true, season: "All Season", occasion: "Corporate", style: "Classic", tailoring_notes: "Fully canvassed construction, hand-stitched lapels.", delivery_estimate: "14-21 business days" },
+  { name: "The Empress Evening Gown", slug: "empress-evening-gown", category: "Evening Wear", gender: "women", price: 680000, description: "A show-stopping silk crepe gown with a dramatic cowl back and elegant train. Designed for the woman who commands attention.", images: ["https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80", "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&q=80"], fabric: "Silk Crepe de Chine", sizes: ["XS","S","M","L","XL"], colors: ["Burgundy","Jet Black","Emerald"], in_stock: true, stock_qty: 8, low_stock_threshold: 2, rating: 5.0, review_count: 78, is_new: true, season: "Fall/Winter", occasion: "Evening", style: "Editorial", tailoring_notes: "Boned bodice, fully lined, concealed zipper.", delivery_estimate: "21-28 business days" },
+  { name: "The Signature Tailored Trousers", slug: "signature-tailored-trousers", category: "Ready-to-Wear", gender: "men", price: 185000, description: "Sharp, modern trousers cut from lightweight wool with a mid-rise waist, straight leg, and perfectly pressed crease.", images: ["https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&q=80", "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80"], fabric: "Super 120s Wool", sizes: ["28","30","32","34","36","38"], colors: ["Jet Black","Navy","Stone Gray"], in_stock: true, stock_qty: 30, low_stock_threshold: 5, rating: 4.8, review_count: 203, season: "All Season", occasion: "Corporate", style: "Modern Classic", delivery_estimate: "3-5 business days" },
+  { name: "The Bridal Masterpiece", slug: "bridal-masterpiece", category: "Wedding", gender: "women", price: 1200000, description: "An heirloom-quality wedding gown, hand-beaded with Swarovski crystals over layers of silk tulle and French lace.", images: ["https://images.unsplash.com/photo-1550639525-c97d455acf70?w=800&q=80", "https://images.unsplash.com/photo-1550639525-c97d455acf70?w=800&q=80"], fabric: "French Lace & Silk", sizes: ["XS","S","M","L","XL"], colors: ["Ivory","Pure White","Champagne"], in_stock: true, stock_qty: 3, low_stock_threshold: 1, rating: 5.0, review_count: 45, is_new: true, is_bestseller: true, season: "All Season", occasion: "Wedding", style: "Romantic", tailoring_notes: "Custom measurements required. Includes complimentary fitting sessions.", delivery_estimate: "40-60 business days" },
+  { name: "The Linen Resort Shirt", slug: "linen-resort-shirt", category: "Casual Essentials", gender: "men", price: 95000, description: "Effortlessly elegant in premium linen. A relaxed-fit shirt perfect for warm-weather styling.", images: ["https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80", "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80"], fabric: "Premium Linen", sizes: ["S","M","L","XL","XXL"], colors: ["Cream","Stone Gray","Sky Blue","White"], in_stock: true, stock_qty: 30, low_stock_threshold: 5, rating: 4.7, review_count: 156, season: "Spring/Summer", occasion: "Casual", style: "Relaxed", delivery_estimate: "2-4 business days" },
+  { name: "The Aso Oke Blazer", slug: "aso-oke-blazer", category: "Traditional Wear", gender: "unisex", price: 380000, description: "A contemporary interpretation of the classic Aso Oke. Handwoven by master artisans and tailored into a sharp, modern blazer.", images: ["https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?w=800&q=80", "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80"], fabric: "Handwoven Aso Oke", sizes: ["38","40","42","44","46"], colors: ["Gold","Emerald","Burgundy","Jet Black"], in_stock: true, stock_qty: 10, low_stock_threshold: 2, rating: 4.9, review_count: 88, is_new: true, season: "All Season", occasion: "Traditional", style: "Contemporary Heritage", tailoring_notes: "Each piece is unique due to handwoven fabric variations.", delivery_estimate: "21-30 business days" },
+  { name: "The Power Suit", slug: "power-suit", category: "Bespoke", gender: "women", price: 750000, description: "A sharply tailored pantsuit in Italian wool. Double-breasted jacket with peak lapels, paired with a wide-leg trouser.", images: ["https://images.unsplash.com/photo-1598554747436-c9293d6a588f?w=800&q=80", "https://images.unsplash.com/photo-1598554747436-c9293d6a588f?w=800&q=80"], fabric: "Italian Wool", sizes: ["XS","S","M","L","XL"], colors: ["Jet Black","Navy","Charcoal"], in_stock: true, stock_qty: 5, low_stock_threshold: 2, rating: 4.9, review_count: 67, is_bestseller: true, season: "All Season", occasion: "Corporate", style: "Power Dressing", tailoring_notes: "Fully canvassed. Includes complimentary alterations.", delivery_estimate: "21-28 business days" },
+  { name: "The Velvet Tuxedo", slug: "velvet-tuxedo", category: "Luxury Evening Wear", gender: "men", price: 620000, description: "Opulent velvet tuxedo with silk satin lapels. A statement piece for black-tie occasions.", images: ["https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80", "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?w=800&q=80"], fabric: "Silk Velvet", sizes: ["38","40","42","44","46"], colors: ["Jet Black","Burgundy","Emerald"], in_stock: true, stock_qty: 7, low_stock_threshold: 2, rating: 5.0, review_count: 42, is_new: true, season: "Fall/Winter", occasion: "Evening", style: "Luxury", delivery_estimate: "14-21 business days" },
+  { name: "The Leather Crossbody", slug: "leather-crossbody", category: "Accessories", gender: "unisex", price: 250000, description: "Handcrafted from full-grain Italian leather. A minimalist crossbody bag with gold-toned hardware.", images: ["https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80", "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80"], fabric: "Full-Grain Italian Leather", sizes: ["One Size"], colors: ["Jet Black","Cognac","Cream"], in_stock: true, stock_qty: 20, low_stock_threshold: 5, rating: 4.8, review_count: 93, season: "All Season", occasion: "Casual", style: "Minimalist", delivery_estimate: "5-7 business days" },
+  { name: "The Cashmere Overcoat", slug: "cashmere-overcoat", category: "Luxury Evening Wear", gender: "men", price: 890000, description: "A timeless investment piece. Double-breasted overcoat in pure Mongolian cashmere with a silk lining.", images: ["https://images.unsplash.com/photo-1539533113208-f6df8cc8b543?w=800&q=80", "https://images.unsplash.com/photo-1539533113208-f6df8cc8b543?w=800&q=80"], fabric: "Mongolian Cashmere", sizes: ["38","40","42","44","46"], colors: ["Jet Black","Charcoal","Camel"], in_stock: true, stock_qty: 6, low_stock_threshold: 2, rating: 4.9, review_count: 55, is_bestseller: true, season: "Fall/Winter", occasion: "Evening", style: "Classic Luxury", delivery_estimate: "7-14 business days" },
+]
+
+const customersData = [
+  { name: "Amara Okafor", email: "amara.okafor@example.com", phone: "+234-801-234-5678", status: "vip", notes: "Regular bespoke client. Prefers appointments on Saturdays.", street: "12 Admiralty Way", city: "Lekki", state: "Lagos", country: "Nigeria" },
+  { name: "David Kalu", email: "david.kalu@example.com", phone: "+234-802-345-6789", status: "vip", notes: "Corporate client. Orders bulk suits quarterly.", street: "45 Maitama Avenue", city: "Abuja", state: "FCT", country: "Nigeria" },
+  { name: "Chioma Eze", email: "chioma.eze@example.com", phone: "+234-803-456-7890", status: "active", street: "78 Woji Road", city: "Port Harcourt", state: "Rivers", country: "Nigeria" },
+  { name: "Tunde Adebayo", email: "tunde.adebayo@example.com", phone: "+234-804-567-8901", status: "active", city: "Lagos", state: "Lagos", country: "Nigeria" },
+  { name: "Zara Mensah", email: "zara.mensah@example.com", phone: "+233-501-234-567", status: "active", notes: "International client. Ships to Accra.", city: "Accra", country: "Ghana" },
+  { name: "Michael Adewale", email: "michael.adewale@example.com", phone: "+234-805-678-9012", status: "vip", city: "Lagos", state: "Lagos", country: "Nigeria" },
+  { name: "Sarah Johnson", email: "sarah.johnson@example.com", phone: "+234-806-789-0123", status: "active", notes: "Bridal client.", city: "Abuja", state: "FCT", country: "Nigeria" },
+  { name: "Ngozi Franklin", email: "ngozi.franklin@example.com", phone: "+234-807-890-1234", status: "inactive", city: "Port Harcourt", state: "Rivers", country: "Nigeria" },
+]
+
+async function main() {
+  console.log("=== YSI Seed Data Migration ===\n")
+
+  console.log("Seeding products...")
+  const productIds = {}
+  for (const p of productsData) {
+    const id = uuid(p.slug)
+    productIds[p.slug] = id
+    const r = await insert("products", { id, ...p })
+    console.log(`  ${r.ok ? "✓" : "✗"} ${p.name} (${r.status})${!r.ok ? " " + r.text : ""}`)
+  }
+
+  await sleep(500)
+
+  console.log("\nSeeding customers...")
+  const customerIds = {}
+  for (const c of customersData) {
+    const id = uuid(c.email)
+    customerIds[c.email] = id
+    const r = await insert("customers", { id, ...c })
+    console.log(`  ${r.ok ? "✓" : "✗"} ${c.name} (${r.status})${!r.ok ? " " + r.text : ""}`)
+  }
+
+  await sleep(500)
+
+  console.log("\nSeeding orders...")
+  const orders = [
+    { order_number: "YSI-2026-001", customer_email: "amara.okafor@example.com", status: "delivered", subtotal: 1130000, shipping: 0, total: 1130000, payment_method: "paystack", payment_status: "paid", street: "12 Admiralty Way", city: "Lekki", state: "Lagos", country: "Nigeria", items: [{ product_slug: "executive-tailored-blazer", name: "The Executive Tailored Blazer", quantity: 1, price: 450000, size: "42", color: "Jet Black" }, { product_slug: "power-suit", name: "The Power Suit", quantity: 1, price: 750000, size: "M", color: "Jet Black" }] },
+    { order_number: "YSI-2026-002", customer_email: "chioma.eze@example.com", status: "delivered", subtotal: 1200000, shipping: 0, total: 1200000, payment_method: "bank-transfer", payment_status: "paid", city: "Port Harcourt", state: "Rivers", country: "Nigeria", items: [{ product_slug: "bridal-masterpiece", name: "The Bridal Masterpiece", quantity: 1, price: 1200000, size: "M", color: "Ivory" }] },
+    { order_number: "YSI-2026-003", customer_email: "david.kalu@example.com", status: "shipped", subtotal: 370000, shipping: 15000, total: 385000, payment_method: "paystack", payment_status: "paid", city: "Abuja", state: "FCT", country: "Nigeria", items: [{ product_slug: "signature-tailored-trousers", name: "The Signature Tailored Trousers", quantity: 2, price: 185000, size: "34", color: "Navy" }] },
+    { order_number: "YSI-2026-004", customer_email: "tunde.adebayo@example.com", status: "quality-check", subtotal: 380000, shipping: 0, total: 380000, payment_method: "paystack", payment_status: "paid", city: "Lagos", state: "Lagos", country: "Nigeria", items: [{ product_slug: "aso-oke-blazer", name: "The Aso Oke Blazer", quantity: 1, price: 380000, size: "42", color: "Emerald" }] },
+    { order_number: "YSI-2026-005", customer_email: "zara.mensah@example.com", status: "pending", subtotal: 380000, shipping: 30000, total: 410000, payment_method: "flutterwave", payment_status: "pending", city: "Accra", country: "Ghana", items: [{ product_slug: "aso-oke-blazer", name: "The Aso Oke Blazer", quantity: 1, price: 380000, size: "40", color: "Gold" }] },
+    { order_number: "YSI-2026-006", customer_email: "amara.okafor@example.com", status: "confirmed", subtotal: 890000, shipping: 0, total: 890000, payment_method: "paystack", payment_status: "paid", city: "Lagos", state: "Lagos", country: "Nigeria", items: [{ product_slug: "cashmere-overcoat", name: "The Cashmere Overcoat", quantity: 1, price: 890000, size: "42", color: "Charcoal" }] },
+    { order_number: "YSI-2026-007", customer_email: "michael.adewale@example.com", status: "tailoring", subtotal: 750000, shipping: 0, total: 750000, payment_method: "bank-transfer", payment_status: "paid", city: "Lagos", state: "Lagos", country: "Nigeria", items: [{ product_slug: "power-suit", name: "The Power Suit", quantity: 1, price: 750000, size: "L", color: "Navy" }] },
+    { order_number: "YSI-2026-008", customer_email: "sarah.johnson@example.com", status: "pending", subtotal: 1200000, shipping: 0, total: 1200000, payment_method: "paystack", payment_status: "pending", city: "Abuja", state: "FCT", country: "Nigeria", items: [{ product_slug: "bridal-masterpiece", name: "The Bridal Masterpiece", quantity: 1, price: 1200000, size: "S", color: "Pure White" }] },
+  ]
+
+  for (const order of orders) {
+    const orderId = uuid(order.order_number)
+    const cid = customerIds[order.customer_email]
+    if (!cid) { console.log(`  ✗ ${order.order_number}: customer not found`); continue }
+
+    const { customer_email, items, ...orderData } = order
+    const r = await insert("orders", { id: orderId, customer_id: cid, ...orderData })
+    console.log(`  ${r.ok ? "✓" : "✗"} ${order.order_number} (${r.status})${!r.ok ? " " + r.text : ""}`)
+
+    if (r.ok && items) {
+      for (const item of items) {
+        const { product_slug, ...itemData } = item
+        const pid = productIds[product_slug]
+        await insert("order_items", { id: uuid(`${order.order_number}-${product_slug}`), order_id: orderId, product_id: pid, ...itemData })
+      }
+      await insert("order_timeline", { id: uuid(`${order.order_number}-created`), order_id: orderId, status: orderData.status, note: "Order placed" })
+    }
+  }
+
+  await sleep(500)
+
+  console.log("\nSeeding inventory logs...")
+  const inventoryLogs = [
+    { slug: "executive-tailored-blazer", type: "restock", quantity: 10, previous_stock: 5, new_stock: 15 },
+    { slug: "empress-evening-gown", type: "restock", quantity: 8, previous_stock: 0, new_stock: 8 },
+    { slug: "bridal-masterpiece", type: "restock", quantity: 3, previous_stock: 0, new_stock: 3 },
+    { slug: "leather-crossbody", type: "restock", quantity: 20, previous_stock: 0, new_stock: 20 },
+    { slug: "linen-resort-shirt", type: "restock", quantity: 30, previous_stock: 0, new_stock: 30 },
+  ]
+
+  for (const log of inventoryLogs) {
+    const pid = productIds[log.slug]
+    if (!pid) { console.log(`  ✗ product ${log.slug} not found`); continue }
+    const { slug, ...logData } = log
+    const r = await insert("inventory_logs", { id: uuid(`inv-${log.slug}`), product_id: pid, ...logData })
+    console.log(`  ${r.ok ? "✓" : "✗"} ${log.slug} (${r.status})`)
+  }
+
+  console.log("\n=== Verification ===")
+  for (const table of ["products", "customers", "orders", "order_items", "order_timeline", "inventory_logs"]) {
+    const r = await fetch(`${URL}/rest/v1/${table}?limit=100`, { headers: H })
+    if (r.ok) {
+      const d = await r.json()
+      console.log(`  ${table}: ${d.length} rows`)
+    } else {
+      const t = await r.text()
+      console.log(`  ${table}: ERROR ${r.status} ${t.slice(0, 100)}`)
+    }
+  }
+}
+
+main().catch(console.error)

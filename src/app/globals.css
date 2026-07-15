@@ -1,0 +1,187 @@
+@import "tailwindcss";
+
+@theme {
+  --color-jet: #0a0a0a;
+  --color-jet-soft: #141414;
+  --color-ink: #1a1a1a;
+  --color-ivory: #f8f5f0;
+  --color-cream: #faf6f0;
+  --color-stone: #8b8680;
+  --color-stone-light: #c7c2ba;
+  --color-gold: #c9a227;
+  --color-gold-light: #d4af37;
+  --color-gold-soft: #e6c875;
+  --color-emerald: #0f5132;
+  --color-burgundy: #5a1a1a;
+
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-poppins: var(--font-poppins), system-ui, sans-serif;
+
+  --shadow-luxury: 0 24px 60px -20px rgba(10, 10, 10, 0.25);
+  --shadow-soft: 0 12px 40px -16px rgba(10, 10, 10, 0.18);
+  --shadow-card: 0 8px 30px -12px rgba(10, 10, 10, 0.15);
+
+  --ease-luxury: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --background: #faf6f0;
+  --foreground: #0a0a0a;
+}
+
+* {
+  border-color: rgba(10, 10, 10, 0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv01";
+}
+
+::selection {
+  background: var(--color-gold);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-ivory);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-stone-light);
+  border-radius: 999px;
+  border: 2px solid var(--color-ivory);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold);
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-serif-lux {
+    font-family: var(--font-serif);
+  }
+  .font-poppins {
+    font-family: var(--font-poppins);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .tracking-luxe {
+    letter-spacing: 0.28em;
+  }
+  .tracking-luxe-sm {
+    letter-spacing: 0.18em;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .glass-dark {
+    background: rgba(10, 10, 10, 0.55);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .glass-light {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+  }
+
+  .shadow-luxury {
+    box-shadow: var(--shadow-luxury);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .bg-grain {
+    background-image: radial-gradient(rgba(10, 10, 10, 0.04) 1px, transparent 1px);
+    background-size: 4px 4px;
+  }
+
+  .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(120deg, var(--color-gold-light), var(--color-gold-soft), var(--color-gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .luxury-link {
+    position: relative;
+  }
+  .luxury-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 0;
+    height: 1px;
+    background: var(--color-gold);
+    transition: width 0.4s var(--ease-luxury);
+  }
+  .luxury-link:hover::after {
+    width: 100%;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.04) 63%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+@keyframes scroll-hint {
+  0% { transform: translateY(0); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(14px); opacity: 0; }
+}
+.animate-scroll-hint {
+  animation: scroll-hint 2s var(--ease-luxury) infinite;
+}

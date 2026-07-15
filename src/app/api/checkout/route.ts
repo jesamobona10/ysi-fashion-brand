@@ -1,0 +1,299 @@
+import { NextResponse } from "next/server"
+import { createRouteSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase/server"
+import {
+  sanitizeEmail,
+  sanitizePhone,
+  sanitizeString,
+  validateCheckoutAddress,
+  validateCheckoutContact,
+  validateOrderItems,
+  validateEnum,
+  ALLOWED_PAYMENT_METHODS,
+} from "@/lib/validation"
+
+export const runtime = "nodejs"
+
+interface CheckoutItemInput {
+  id: string
+  slug: string
+  name: string
+  quantity: number
+  price?: number
+  size?: string
+  color?: string
+}
+
+interface CheckoutRequestBody {
+  contact: {
+    name: string
+    email: string
+    phone: string
+  }
+  address: {
+    street: string
+    city: string
+    state: string
+    country: string
+  }
+  paymentMethod: string
+  notes?: string
+  items: CheckoutItemInput[]
+}
+
+function normalizeItemId(id: string) {
+  return id.split("_")[0]
+}
+
+export async function POST(request: Request) {
+  let body: CheckoutRequestBody
+
+  try {
+    body = (await request.json()) as CheckoutRequestBody
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  const contactErrors = validateCheckoutContact(body.contact)
+  const addressErrors = validateCheckoutAddress(body.address)
+  const itemErrors = validateOrderItems(body.items)
+  const paymentError = validateEnum(body.paymentMethod, ALLOWED_PAYMENT_METHODS, "Payment method")
+  const errors = [...contactErrors, ...addressErrors, ...itemErrors]
+  if (paymentError) errors.push(paymentError)
+
+  if (errors.length > 0) {
+    return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 })
+  }
+
+  const url = new URL(request.url)
+  const isSimulation = url.searchParams.get("simulation") === "true"
+
+  const userClient = createRouteSupabaseClient(request)
+  const serviceClient = createServiceSupabaseClient()
+
+  const { data: sessionData } = await userClient.auth.getSession()
+  const user = sessionData.session?.access_token ? (await userClient.auth.getUser()).data.user : null
+
+  let normalizedItems: {
+    product_id: string
+    name: string
+    quantity: number
+    price: number
+    size: string | null
+    color: string | null
+  }[]
+
+  if (isSimulation) {
+    normalizedItems = body.items.map((item) => ({
+      product_id: normalizeItemId(item.id),
+      name: sanitizeString(item.name, 200),
+      quantity: item.quantity,
+      price: Number(item.price) || 0,
+      size: sanitizeString(item.size || "", 50) || null,
+      color: sanitizeString(item.color || "", 50) || null,
+    }))
+  } else {
+    const productIds = body.items.map((item) => normalizeItemId(item.id))
+    const { data: products, error: productsError } = await serviceClient
+      .from("products")
+      .select("id, name, slug, price, in_stock, stock_qty, low_stock_threshold")
+      .in("id", productIds)
+
+    if (productsError) {
+      return NextResponse.json({ error: `Products lookup failed: ${productsError.message}` }, { status: 500 })
+    }
+
+    const productMap = new Map((products || []).map((product) => [product.id, product]))
+    const missingProducts = productIds.filter((id) => !productMap.has(id))
+    if (missingProducts.length > 0) {
+      return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 })
+    }
+
+    normalizedItems = body.items.map((item) => {
+      const product = productMap.get(normalizeItemId(item.id))!
+      return {
+        product_id: product.id,
+        name: sanitizeString(product.name, 200),
+        quantity: item.quantity,
+        price: Number(product.price),
+        size: sanitizeString(item.size || "", 50) || null,
+        color: sanitizeString(item.color || "", 50) || null,
+      }
+    })
+  }
+
+  const subtotal = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const shipping = subtotal >= 150000 ? 0 : 5000
+  const total = subtotal + shipping
+  const now = new Date().toISOString()
+  const prefix = isSimulation ? "SIM" : "YSI"
+  const orderNumber = `${prefix}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
+
+  let customerId: string
+
+  if (user) {
+    customerId = user.id
+    const { data: existingCustomer, error: fetchError } = await serviceClient
+      .from("customers")
+      .select("total_orders, total_spent")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (fetchError) {
+      return NextResponse.json({ error: `Customer lookup failed: ${fetchError.message}` }, { status: 500 })
+    }
+
+    if (existingCustomer) {
+      const { error: updateError } = await serviceClient
+        .from("customers")
+        .update({
+          name: sanitizeString(body.contact.name, 200),
+          phone: sanitizePhone(body.contact.phone),
+          total_orders: Number(existingCustomer.total_orders || 0) + 1,
+          total_spent: Number(existingCustomer.total_spent || 0) + total,
+        })
+        .eq("id", user.id)
+
+      if (updateError) {
+        return NextResponse.json({ error: `Customer update failed: ${updateError.message}` }, { status: 500 })
+      }
+    } else {
+      const { error: insertError } = await serviceClient
+        .from("customers")
+        .insert({
+          id: user.id,
+          name: sanitizeString(body.contact.name, 200),
+          email: sanitizeEmail(body.contact.email),
+          phone: sanitizePhone(body.contact.phone),
+          status: "active",
+          total_orders: 1,
+          total_spent: total,
+        })
+
+      if (insertError) {
+        return NextResponse.json({ error: `Customer insert failed: ${insertError.message}` }, { status: 500 })
+      }
+    }
+  } else {
+    const customerPayload = {
+      name: sanitizeString(body.contact.name, 200),
+      email: sanitizeEmail(body.contact.email),
+      phone: sanitizePhone(body.contact.phone),
+      status: "active",
+      address: {
+        street: sanitizeString(body.address.street, 200),
+        city: sanitizeString(body.address.city, 120),
+        state: sanitizeString(body.address.state, 120),
+        country: sanitizeString(body.address.country, 120),
+      },
+    }
+
+    const { data: existingCustomer, error: existingCustomerError } = await serviceClient
+      .from("customers")
+      .select("id, total_orders, total_spent")
+      .eq("email", customerPayload.email)
+      .maybeSingle()
+
+    if (existingCustomerError) {
+      return NextResponse.json({ error: `Customer lookup failed: ${existingCustomerError.message}` }, { status: 500 })
+    }
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id
+      const { data: updatedCustomer, error: updateError } = await serviceClient
+        .from("customers")
+        .update({
+          ...customerPayload,
+          total_orders: Number(existingCustomer.total_orders || 0) + 1,
+          total_spent: Number(existingCustomer.total_spent || 0) + total,
+        })
+        .eq("id", existingCustomer.id)
+        .select("id")
+        .maybeSingle()
+
+      if (updateError || !updatedCustomer) {
+        return NextResponse.json({ error: `Customer update failed: ${updateError?.message || "No data returned"}` }, { status: 500 })
+      }
+
+      customerId = updatedCustomer.id
+    } else {
+      const { data: insertedCustomer, error: insertError } = await serviceClient
+        .from("customers")
+        .insert({
+          ...customerPayload,
+          total_orders: 1,
+          total_spent: total,
+        })
+        .select("id")
+        .maybeSingle()
+
+      if (insertError || !insertedCustomer) {
+        return NextResponse.json({ error: `Customer insert failed: ${insertError?.message || "No data returned"}` }, { status: 500 })
+      }
+
+      customerId = insertedCustomer.id
+    }
+  }
+
+  const { data: order, error: orderError } = await serviceClient
+    .from("orders")
+    .insert({
+      order_number: orderNumber,
+      customer_id: customerId,
+      status: "pending",
+      subtotal,
+      shipping,
+      total,
+      payment_method: body.paymentMethod,
+      payment_status: "pending",
+      shipping_address: {
+        street: sanitizeString(body.address.street, 200),
+        city: sanitizeString(body.address.city, 120),
+        state: sanitizeString(body.address.state, 120),
+        country: sanitizeString(body.address.country, 120),
+      },
+      notes: isSimulation
+        ? `[SIMULATION] ${sanitizeString(body.notes || "", 2000)}`
+        : sanitizeString(body.notes || "", 2000),
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id, order_number")
+    .maybeSingle()
+
+  if (orderError || !order) {
+    return NextResponse.json({ error: `Failed to create order: ${orderError?.message || "No data returned"}` }, { status: 500 })
+  }
+
+  const orderItems = normalizedItems.map((item) => ({
+    order_id: order.id,
+    product_id: item.product_id,
+    name: item.name,
+    quantity: item.quantity,
+    price: item.price,
+    size: item.size,
+    color: item.color,
+  }))
+
+  const { error: orderItemsError } = await serviceClient.from("order_items").insert(orderItems)
+  if (orderItemsError) {
+    return NextResponse.json({ error: `Failed to save order items: ${orderItemsError.message}` }, { status: 500 })
+  }
+
+  const { error: timelineError } = await serviceClient.from("order_timeline").insert({
+    order_id: order.id,
+    status: "pending",
+    note: "Order created",
+    created_at: now,
+  })
+
+  if (timelineError) {
+    return NextResponse.json({ error: `Failed to save order timeline: ${timelineError.message}` }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    orderNumber: order.order_number,
+    total,
+    authenticated: Boolean(user),
+  })
+}
