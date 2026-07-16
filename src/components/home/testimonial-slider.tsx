@@ -4,12 +4,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 
+const uiAvatar = (name: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1a1a1a&color=d4af37`
+
 const testimonials = [
-  { id: "t1", name: "Amara O.", location: "Lagos, Nigeria", avatar: "https://i.pravatar.cc/100?img=1", rating: 5, text: "YSI transformed my wedding vision into reality. The bespoke gown was beyond anything I could have imagined. Every stitch told a story of craftsmanship and love.", occasion: "Wedding" },
-  { id: "t2", name: "David K.", location: "Abuja, Nigeria", avatar: "https://i.pravatar.cc/100?img=3", rating: 5, text: "The attention to detail in my corporate suits is unmatched. I've never felt more confident in a boardroom. YSI is now my tailor for life.", occasion: "Corporate" },
-  { id: "t3", name: "Chioma E.", location: "Port Harcourt, Nigeria", avatar: "https://i.pravatar.cc/100?img=5", rating: 5, text: "From the fabric selection to the final fitting, the entire bespoke experience was exceptional. I felt like a muse in a fashion atelier.", occasion: "Bespoke" },
-  { id: "t4", name: "Tunde A.", location: "Lagos, Nigeria", avatar: "https://i.pravatar.cc/100?img=8", rating: 4, text: "The ready-to-wear collection is perfect for the modern professional. Quality that rivals international luxury brands, right here in Lagos.", occasion: "Ready-to-Wear" },
-  { id: "t5", name: "Zara M.", location: "Accra, Ghana", avatar: "https://i.pravatar.cc/100?img=9", rating: 5, text: "I traveled from Ghana specifically for YSI's bespoke experience. Worth every mile. The fit is impeccable and the styling advice was invaluable.", occasion: "Bespoke" },
+  { id: "t1", name: "Amara O.", location: "Lagos, Nigeria", avatar: uiAvatar("Amara+O"), rating: 5, text: "YSI transformed my wedding vision into reality. The bespoke gown was beyond anything I could have imagined. Every stitch told a story of craftsmanship and love.", occasion: "Wedding" },
+  { id: "t2", name: "David K.", location: "Abuja, Nigeria", avatar: uiAvatar("David+K"), rating: 5, text: "The attention to detail in my corporate suits is unmatched. I've never felt more confident in a boardroom. YSI is now my tailor for life.", occasion: "Corporate" },
+  { id: "t3", name: "Chioma E.", location: "Port Harcourt, Nigeria", avatar: uiAvatar("Chioma+E"), rating: 5, text: "From the fabric selection to the final fitting, the entire bespoke experience was exceptional. I felt like a muse in a fashion atelier.", occasion: "Bespoke" },
+  { id: "t4", name: "Tunde A.", location: "Lagos, Nigeria", avatar: uiAvatar("Tunde+A"), rating: 4, text: "The ready-to-wear collection is perfect for the modern professional. Quality that rivals international luxury brands, right here in Lagos.", occasion: "Ready-to-Wear" },
+  { id: "t5", name: "Zara M.", location: "Accra, Ghana", avatar: uiAvatar("Zara+M"), rating: 5, text: "I traveled from Ghana specifically for YSI's bespoke experience. Worth every mile. The fit is impeccable and the styling advice was invaluable.", occasion: "Bespoke" },
 ];
 
 export function TestimonialSlider() {

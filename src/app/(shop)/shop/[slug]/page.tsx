@@ -32,9 +32,14 @@ async function fetchProductBySlug(slug: string): Promise<Record<string, unknown>
   }
 }
 
-async function fetchAllProducts(): Promise<Record<string, unknown>[]> {
+async function fetchRelatedProducts(category: string, gender: string, excludeId: string): Promise<Record<string, unknown>[]> {
   try {
-    const { data, error } = await supabase.from("products").select("*")
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .or(`category.eq.${category},gender.eq.${gender}`)
+      .neq("id", excludeId)
+      .limit(4)
     if (error) throw error
     return (data as Record<string, unknown>[]) || []
   } catch {
@@ -81,10 +86,10 @@ export default function ProductPage() {
     async function load() {
       const found = await fetchProductBySlug(params.slug as string)
       if (found) {
-        setProduct(toProduct(found))
-        const all = await fetchAllProducts()
-        const allProducts = all.map(toProduct)
-        setRecommended(allProducts.filter((p) => p.id !== found.id && (p.category === (found.category as string) || p.gender === (found.gender as string))).slice(0, 4))
+        const product = toProduct(found)
+        setProduct(product)
+        const related = await fetchRelatedProducts(product.category, product.gender, product.id)
+        setRecommended(related.map(toProduct))
       }
       setLoading(false)
     }
@@ -240,7 +245,7 @@ export default function ProductPage() {
             ) : (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
                 <div className="flex items-start gap-4 p-6 bg-ivory">
-                  <img src="https://i.pravatar.cc/60?img=1" alt="Reviewer" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                  <img src="https://ui-avatars.com/api/?name=Amara+O&background=1a1a1a&color=d4af37" alt="Reviewer" className="w-12 h-12 rounded-full object-cover shrink-0" />
                   <div>
                     <div className="flex items-center gap-2"><p className="font-poppins text-sm font-medium text-jet">Amara O.</p><div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => (<Star key={i} size={12} className="text-gold fill-gold" />))}</div></div>
                     <p className="text-jet/40 text-xs mt-0.5">Verified Purchase &bull; 2 weeks ago</p>

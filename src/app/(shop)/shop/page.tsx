@@ -68,13 +68,21 @@ const sortOptions = [
   { label: "Best Rated", value: "rating" },
 ]
 
-async function fetchProducts(): Promise<Record<string, unknown>[]> {
+const PAGE_SIZE = 50
+
+async function fetchProducts(limit = PAGE_SIZE, offset = 0): Promise<{ data: Record<string, unknown>[]; total: number }> {
   try {
-    const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false })
+    const countResult = await supabase.from("products").select("*", { count: "exact", head: true })
+    const total = countResult.count || 0
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)
     if (error) throw error
-    return (data as Record<string, unknown>[]) || []
+    return { data: (data as Record<string, unknown>[]) || [], total }
   } catch {
-    return []
+    return { data: [], total: 0 }
   }
 }
 
@@ -132,7 +140,9 @@ function toProduct(p: Record<string, unknown>): Product {
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [totalProducts, setTotalProducts] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [filters, setFilters] = useState<FilterState>({
     gender: [], category: [], fabric: [], sizes: [], season: [], occasion: [], style: [], price: [], search: "",
   })
@@ -141,11 +151,21 @@ export default function ShopPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetchProducts().then((data) => {
+    fetchProducts().then(({ data, total }) => {
       setProducts(data.map(toProduct))
+      setTotalProducts(total)
       setLoading(false)
     })
   }, [])
+
+  const loadMore = async () => {
+    setLoadingMore(true)
+    const { data } = await fetchProducts(PAGE_SIZE, products.length)
+    setProducts((prev) => [...prev, ...data.map(toProduct)])
+    setLoadingMore(false)
+  }
+
+  const hasMore = products.length < totalProducts
 
   const filtered = useMemo(() => {
     let result = [...products]
@@ -349,6 +369,14 @@ export default function ShopPage() {
                 className={cn(view === "grid" ? "grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6" : "flex flex-col gap-6")}>
                 {filtered.map((product) => (<ProductCard key={product.id} product={product} view={view} />))}
               </motion.div>
+              {hasMore && filtered.length >= products.length && (
+                <div className="text-center mt-10">
+                  <button onClick={loadMore} disabled={loadingMore}
+                    className="h-11 px-8 border border-jet/10 text-xs font-poppins uppercase tracking-luxe text-jet/60 hover:bg-jet hover:text-cream transition-all disabled:opacity-50">
+                    {loadingMore ? "Loading..." : `Load More (${products.length - filtered.length + filtered.length}/${totalProducts})`}
+                  </button>
+                </div>
+              )}
             )}
           </div>
         </div>

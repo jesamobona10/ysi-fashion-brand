@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback, useRef } from "react"
+import { supabase } from "@/lib/supabase/client"
+import { useAuth } from "@/components/auth/auth-provider"
 
 const STORAGE_KEY = "ysi_cart";
 
@@ -85,6 +87,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     items: [],
     isOpen: false,
   });
+  const { user } = useAuth()
+  const isLoggedIn = !!user
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hydrated = useRef(false)
+
+  const syncToSupabase = useCallback(async (items: CartItem[]) => {
+    if (!user?.id) return
+    try {
+      const { error } = await supabase.from("carts").upsert(
+        { user_id: user.id, items },
+        { onConflict: "user_id", ignoreDuplicates: false }
+      )
+      if (error) console.error("Cart sync error:", error.message)
+    } catch {}
+  }, [user])
 
   useEffect(() => {
     try {
@@ -94,11 +111,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(parsed)) dispatch({ type: "HYDRATE", payload: parsed });
       }
     } catch {}
+    hydrated.current = true
   }, []);
 
   useEffect(() => {
+    if (!hydrated.current) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
-  }, [state.items]);
+
+    if (isLoggedIn) {
+      if (syncTimer.current) clearTimeout(syncTimer.current)
+      syncTimer.current = setTimeout(() => syncToSupabase(state.items), 1000)
+    }
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current) }
+  }, [state.items, isLoggedIn, syncToSupabase]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !hydrated.current) return
+    supabase.from("carts").select("items").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      if (!data?.items) return
+      const remoteItems = (data.items as CartItem[]) || []
+      if (remoteItems.length === 0) return
+      const localItems = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as CartItem[]
+      if (localItems.length === 0) {
+        dispatch({ type: "HYDRATE", payload: remoteItems })
+      }
+    })
+  }, [isLoggedIn, user])
 
   const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) =>
     dispatch({ type: "ADD_ITEM", payload: item as CartItem });

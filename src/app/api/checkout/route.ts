@@ -261,61 +261,45 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data: order, error: orderError } = await serviceClient
-    .from("orders")
-    .insert({
-      order_number: orderNumber,
-      customer_id: customerId,
-      status: "pending",
-      subtotal,
-      shipping,
-      total,
-      payment_method: body.paymentMethod,
-      payment_status: "pending",
-      shipping_address: {
-        street: sanitizeString(body.address.street, 200),
-        city: sanitizeString(body.address.city, 120),
-        state: sanitizeString(body.address.state, 120),
-        country: sanitizeString(body.address.country, 120),
-      },
-      notes: isSimulation
-        ? `[SIMULATION] ${sanitizeString(body.notes || "", 2000)}`
-        : sanitizeString(body.notes || "", 2000),
-      created_at: now,
-      updated_at: now,
-    })
-    .select("id, order_number")
-    .maybeSingle()
+  const notes = isSimulation
+    ? `[SIMULATION] ${sanitizeString(body.notes || "", 2000)}`
+    : sanitizeString(body.notes || "", 2000)
 
-  if (orderError || !order) {
+  const { data: orderResult, error: orderRpcError } = await serviceClient.rpc("place_order", {
+    p_order_number: orderNumber,
+    p_customer_id: customerId,
+    p_subtotal: subtotal,
+    p_shipping: shipping,
+    p_total: total,
+    p_payment_method: body.paymentMethod,
+    p_shipping_address: {
+      street: sanitizeString(body.address.street, 200),
+      city: sanitizeString(body.address.city, 120),
+      state: sanitizeString(body.address.state, 120),
+      country: sanitizeString(body.address.country, 120),
+    },
+    p_notes: notes,
+    p_items: normalizedItems.map((item) => ({
+      product_id: item.product_id,
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+      size: item.size || "",
+      color: item.color || "",
+    })),
+    p_now: now,
+  })
+
+  if (orderRpcError) {
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
   }
 
-  const orderItems = normalizedItems.map((item) => ({
-    order_id: order.id,
-    product_id: item.product_id,
-    name: item.name,
-    quantity: item.quantity,
-    price: item.price,
-    size: item.size,
-    color: item.color,
-  }))
-
-  const { error: orderItemsError } = await serviceClient.from("order_items").insert(orderItems)
-  if (orderItemsError) {
-    return NextResponse.json({ error: "Failed to save order items" }, { status: 500 })
+  const result = orderResult as Record<string, unknown> | undefined
+  if (!result || result.error) {
+    return NextResponse.json({ error: String((result as Record<string, unknown>)?.error || "Order creation failed") }, { status: 500 })
   }
 
-  const { error: timelineError } = await serviceClient.from("order_timeline").insert({
-    order_id: order.id,
-    status: "pending",
-    note: "Order created",
-    created_at: now,
-  })
-
-  if (timelineError) {
-    return NextResponse.json({ error: "Failed to save order timeline" }, { status: 500 })
-  }
+  const orderId = result.order_id as string
 
   if (productMap) {
     for (const item of normalizedItems) {
@@ -335,7 +319,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    orderNumber: order.order_number,
+    orderNumber,
     total,
     authenticated: Boolean(user),
   })

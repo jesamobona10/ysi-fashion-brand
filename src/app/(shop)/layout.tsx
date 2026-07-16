@@ -37,8 +37,8 @@ const poppins = Poppins({
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${playfair.variable} ${cormorant.variable} ${inter.variable} ${poppins.variable}`}>
-      <CartProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <CartProvider>
           <Navbar />
           <CartDrawer />
           <PageTransition>
@@ -46,8 +46,8 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
           </PageTransition>
           <Footer />
           <MobileNav />
-        </AuthProvider>
-      </CartProvider>
+        </CartProvider>
+      </AuthProvider>
     </div>
   );
 }

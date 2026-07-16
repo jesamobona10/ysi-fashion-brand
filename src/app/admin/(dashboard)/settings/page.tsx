@@ -8,6 +8,18 @@ import { Save, Check, Loader2 } from "lucide-react";
 import { sanitizeString, isValidEmail, isValidPhone } from "@/lib/validation";
 import { useToast } from "@/components/ui/toast";
 
+const ALL_PAYMENT_METHODS = ["Paystack", "Flutterwave", "Stripe", "Bank Transfer", "Cash on Delivery"] as const
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  "Paystack": "paystack",
+  "Flutterwave": "flutterwave",
+  "Stripe": "stripe",
+  "Bank Transfer": "bank-transfer",
+  "Cash on Delivery": "cash-on-delivery",
+}
+const PAYMENT_METHOD_REVERSE: Record<string, string> = Object.fromEntries(
+  Object.entries(PAYMENT_METHOD_MAP).map(([k, v]) => [v, k])
+)
+
 interface StoreSettings {
   name: string;
   email: string;
@@ -15,6 +27,7 @@ interface StoreSettings {
   address: string;
   freeShippingThreshold: string;
   flatShippingRate: string;
+  paymentMethods: string[];
 }
 
 export default function AdminSettingsPage() {
@@ -23,6 +36,9 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -34,6 +50,7 @@ export default function AdminSettingsPage() {
         if (!res.ok) throw new Error("Failed to load settings");
         const data = await res.json();
         setStore(data);
+        if (data.name) setProfileName(data.name);
       } catch {
         setError("Failed to load settings from server");
       } finally {
@@ -67,6 +84,10 @@ export default function AdminSettingsPage() {
 
     setSaving(true);
     try {
+      const enabledPaymentMethods = ALL_PAYMENT_METHODS
+        .filter((m) => store.paymentMethods.includes(PAYMENT_METHOD_MAP[m]))
+        .map((m) => PAYMENT_METHOD_MAP[m])
+
       const sanitized: StoreSettings = {
         name: sanitizeString(store.name, 200),
         email: store.email.trim().toLowerCase(),
@@ -74,6 +95,7 @@ export default function AdminSettingsPage() {
         address: sanitizeString(store.address, 500),
         freeShippingThreshold: store.freeShippingThreshold,
         flatShippingRate: store.flatShippingRate,
+        paymentMethods: enabledPaymentMethods,
       };
 
       const res = await fetch("/api/admin/settings", {
@@ -163,28 +185,56 @@ export default function AdminSettingsPage() {
           <Field label="Flat Shipping Rate (₦)" value={store.flatShippingRate} onChange={(v) => update("flatShippingRate", v)} type="number" error={fieldErrors.flatShippingRate} />
           <div className="mt-4 pt-4 border-t border-jet/5">
             <h4 className="text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-3">Payment Methods</h4>
-            {["Paystack", "Flutterwave", "Stripe", "Bank Transfer", "Cash on Delivery"].map((method) => (
-              <label key={method} className="flex items-center gap-3 py-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="w-4 h-4 accent-jet" />
-                <span className="text-sm font-poppins text-jet/70">{method}</span>
-              </label>
-            ))}
+            {ALL_PAYMENT_METHODS.map((method) => {
+              const key = PAYMENT_METHOD_MAP[method]
+              const checked = store.paymentMethods.includes(key)
+              return (
+                <label key={method} className="flex items-center gap-3 py-2 cursor-pointer">
+                  <input type="checkbox" checked={checked}
+                    onChange={() => {
+                      const updated = checked
+                        ? store.paymentMethods.filter((m) => m !== key)
+                        : [...store.paymentMethods, key]
+                      setStore({ ...store, paymentMethods: updated })
+                    }}
+                    className="w-4 h-4 accent-jet" />
+                  <span className="text-sm font-poppins text-jet/70">{method}</span>
+                </label>
+              )
+            })}
           </div>
         </Section>
 
         <Section title="Your Profile" desc="Your admin account details">
-          {user && (
-            <div className="flex items-center gap-4 mb-4">
-              <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover" />
-              <div>
-                <p className="font-poppins text-sm text-jet font-medium">{user.name}</p>
-                <p className="text-xs text-jet/40">{user.email}</p>
-              </div>
+          <div className="flex items-center gap-4 mb-4">
+            <img src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "A")}&background=1a1a1a&color=d4af37`} alt={user?.name || "Admin"} className="w-12 h-12 rounded-full object-cover" />
+            <div>
+              <p className="font-poppins text-sm text-jet font-medium">{user?.name}</p>
+              <p className="text-xs text-jet/40">{user?.email}</p>
             </div>
-          )}
-          <Field label="Full Name" value={user?.name || ""} onChange={() => {}} />
+          </div>
+          <Field label="Full Name" value={profileName} onChange={(v) => setProfileName(v)} />
           <Field label="Email" value={user?.email || ""} onChange={() => {}} />
-          <Field label="Phone" value={user?.phone || ""} onChange={() => {}} />
+          <Field label="Phone" value={profilePhone} onChange={(v) => setProfilePhone(v)} />
+          <div className="mt-3">
+            <button onClick={async () => {
+              setProfileSaving(true)
+              try {
+                const res = await fetch("/api/admin/settings", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: sanitizeString(profileName, 200), phone: sanitizeString(profilePhone, 50) }),
+                })
+                if (!res.ok) throw new Error("Failed")
+                toast({ title: "Profile updated", variant: "success" })
+              } catch {
+                toast({ title: "Profile update failed", variant: "error" })
+              } finally { setProfileSaving(false) }
+            }} disabled={profileSaving}
+              className="h-8 px-4 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe hover:bg-gold hover:text-jet transition-all duration-300">
+              {profileSaving ? "Saving..." : "Update Profile"}
+            </button>
+          </div>
         </Section>
 
         <Section title="System" desc="Application info">

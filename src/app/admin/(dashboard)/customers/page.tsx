@@ -43,7 +43,7 @@ function mapCustomer(raw: Record<string, unknown>): CustomerRow {
     name: String(raw.name || ""),
     email: String(raw.email || ""),
     phone: String(raw.phone || ""),
-    avatar: `https://i.pravatar.cc/80?img=${Math.floor(Math.random() * 70)}`,
+    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(String(raw.name || ""))}&background=1a1a1a&color=d4af37`,
     totalOrders: Number(raw.total_orders || 0),
     totalSpent: Number(raw.total_spent || 0),
     joinDate: String(raw.created_at || new Date().toISOString()),

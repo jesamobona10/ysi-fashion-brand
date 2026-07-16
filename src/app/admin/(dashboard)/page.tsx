@@ -36,37 +36,6 @@ interface DashboardData {
   recentOrders: Record<string, unknown>[]
 }
 
-function computeMonthlyRevenue(orders: Record<string, unknown>[]): { month: string; revenue: number; orders: number }[] {
-  const monthMap = new Map<string, { revenue: number; orders: number }>()
-  MONTHS.forEach((m) => monthMap.set(m, { revenue: 0, orders: 0 }))
-  for (const o of orders) {
-    if ((o.status as string) === "cancelled") continue
-    const dateStr = String(o.created_at || o.createdAt || "")
-    if (!dateStr) continue
-    try {
-      const date = new Date(dateStr)
-      const month = MONTHS[date.getMonth()]
-      const existing = monthMap.get(month) || { revenue: 0, orders: 0 }
-      existing.revenue += Number(o.total || 0)
-      existing.orders += 1
-      monthMap.set(month, existing)
-    } catch {}
-  }
-  return MONTHS.map((month) => ({
-    month,
-    revenue: monthMap.get(month)?.revenue || 0,
-    orders: monthMap.get(month)?.orders || 0,
-  }))
-}
-
-function computeOrdersByStatus(orders: Record<string, unknown>[]): { status: string; count: number }[] {
-  const statuses = ["pending", "confirmed", "tailoring", "quality-check", "shipped", "delivered", "cancelled"]
-  return statuses.map((status) => ({
-    status,
-    count: orders.filter((o) => (o.status as string) === status).length,
-  }))
-}
-
 export default function AdminDashboard() {
   const { isAdmin } = useAdminAuth()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -74,42 +43,79 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [ordersRes, productsRes, customersRes] = await Promise.all([
-        supabase.from("orders").select("*"),
-        supabase.from("products").select("*"),
-        supabase.from("customers").select("*"),
+      const thisYear = new Date().getFullYear()
+      const startOfYear = `${thisYear}-01-01T00:00:00Z`
+      const endOfYear = `${thisYear}-12-31T23:59:59Z`
+
+      const [
+        ordersCount,
+        pendingCount,
+        customersCount,
+        productsCount,
+        lowStockRes,
+        yearOrdersRes,
+        statusOrders,
+        recentOrdersRes,
+      ] = await Promise.all([
+        supabase.from("orders").select("*", { count: "exact", head: true }),
+        supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("customers").select("*", { count: "exact", head: true }),
+        supabase.from("products").select("*", { count: "exact", head: true }).neq("in_stock", false),
+        supabase.from("products").select("stock_qty, low_stock_threshold"),
+        supabase.from("orders").select("total, status, created_at").gte("created_at", startOfYear).lte("created_at", endOfYear),
+        supabase.from("orders").select("status", { count: "exact", head: false }),
+        supabase.from("orders").select("order_number, customer_id, total, status, created_at").order("created_at", { ascending: false }).limit(5),
       ])
-      const orders = (ordersRes.data as Record<string, unknown>[]) || []
-      const products = (productsRes.data as Record<string, unknown>[]) || []
-      const customers = (customersRes.data as Record<string, unknown>[]) || []
 
-    const totalRevenue = orders
-      .filter((o) => (o.status as string) !== "cancelled")
-      .reduce((sum, o) => sum + Number(o.total || 0), 0)
+      const allOrders = (yearOrdersRes.data as Record<string, unknown>[]) || []
+      const revenueOrders = allOrders.filter((o) => (o.status as string) !== "cancelled")
 
-    const lowStockItems = products.filter((p) => {
-      const qty = Number(p.stock_qty || 0)
-      const threshold = Number(p.low_stock_threshold || 5)
-      return qty <= threshold
-    }).length
+      const monthMap = new Map<string, { revenue: number; orders: number }>()
+      MONTHS.forEach((m) => monthMap.set(m, { revenue: 0, orders: 0 }))
+      for (const o of revenueOrders) {
+        const dateStr = String(o.created_at || "")
+        if (!dateStr) continue
+        try {
+          const date = new Date(dateStr)
+          const month = MONTHS[date.getMonth()]
+          const existing = monthMap.get(month) || { revenue: 0, orders: 0 }
+          existing.revenue += Number(o.total || 0)
+          existing.orders += 1
+          monthMap.set(month, existing)
+        } catch {}
+      }
 
-    const pendingOrders = orders.filter((o) => (o.status as string) === "pending").length
+      const allStatuses = (statusOrders.data as Record<string, unknown>[]) || []
+      const statusCounts: Record<string, number> = {}
+      for (const o of allStatuses) {
+        const s = (o.status as string) || "pending"
+        statusCounts[s] = (statusCounts[s] || 0) + 1
+      }
+      const ordersByStatus = ["pending", "confirmed", "tailoring", "quality-check", "shipped", "delivered", "cancelled"]
+        .map((status) => ({ status, count: statusCounts[status] || 0 }))
+
+      const lowStockProducts = ((lowStockRes.data as { stock_qty: number; low_stock_threshold: number }[]) || [])
+        .filter((p) => Number(p.stock_qty) <= Number(p.low_stock_threshold || 5))
 
     setData({
-      totalRevenue,
-      totalOrders: orders.length,
-      activeProducts: products.filter((p) => p.in_stock !== false).length,
-      totalCustomers: customers.length,
-      lowStockItems,
-      pendingOrders,
-      monthlyRevenue: computeMonthlyRevenue(orders),
-      ordersByStatus: computeOrdersByStatus(orders),
-      recentOrders: orders.slice(0, 5),
+      totalRevenue: revenueOrders.reduce((sum, o) => sum + Number(o.total || 0), 0),
+      totalOrders: ordersCount.count || 0,
+      activeProducts: productsCount.count || 0,
+      totalCustomers: customersCount.count || 0,
+      lowStockItems: lowStockProducts.length,
+      pendingOrders: pendingCount.count || 0,
+      monthlyRevenue: MONTHS.map((month) => ({
+        month,
+        revenue: monthMap.get(month)?.revenue || 0,
+        orders: monthMap.get(month)?.orders || 0,
+      })),
+      ordersByStatus,
+      recentOrders: (recentOrdersRes.data as Record<string, unknown>[]) || [],
     })
     setLoading(false)
   }
   load()
-}, [])
+  }, [])
 
   if (loading || !data) {
     return (
