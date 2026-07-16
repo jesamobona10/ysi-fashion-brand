@@ -87,6 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, loading: false }))
         return { ok: false, error: error?.message || "Login failed" }
       }
+      const { data: adminRecord } = await supabase
+        .from("admin_users")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle()
+
+      if (adminRecord) {
+        await supabase.auth.signOut()
+        setState({ user: null, isAuthenticated: false, loading: false })
+        return { ok: false, error: "Access denied" }
+      }
+
       setAuthCookies(session.access_token, session.refresh_token)
       setState({
         user: { id: user.id, email: user.email || "", name: (user.user_metadata?.name as string | undefined) || undefined },
