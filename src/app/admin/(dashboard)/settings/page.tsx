@@ -5,7 +5,7 @@ import { useAdminAuth } from "@/components/admin/auth-provider";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Save, Check, Loader2 } from "lucide-react";
-import { validateSettings, sanitizeString, isValidEmail, isValidPhone } from "@/lib/validation";
+import { sanitizeString, isValidEmail, isValidPhone } from "@/lib/validation";
 import { useToast } from "@/components/ui/toast";
 
 interface StoreSettings {
@@ -17,27 +17,10 @@ interface StoreSettings {
   flatShippingRate: string;
 }
 
-const SETTINGS_KEY = "ysi_store_settings";
-
 export default function AdminSettingsPage() {
   const { user } = useAdminAuth();
-
-  const loadSaved = (): StoreSettings => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return {
-      name: "YSI (YUTY_STYLEDIT)",
-      email: "hello@ysi.ng",
-      phone: "+234 800 YSI",
-      address: "Lagos, Nigeria",
-      freeShippingThreshold: "150000",
-      flatShippingRate: "5000",
-    };
-  };
-
-  const [store, setStore] = useState<StoreSettings>(loadSaved);
+  const [store, setStore] = useState<StoreSettings | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -45,10 +28,23 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    setStore(loadSaved());
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/settings");
+        if (!res.ok) throw new Error("Failed to load settings");
+        const data = await res.json();
+        setStore(data);
+      } catch {
+        setError("Failed to load settings from server");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!store) return;
     setError("");
     setFieldErrors({});
 
@@ -79,7 +75,15 @@ export default function AdminSettingsPage() {
         freeShippingThreshold: store.freeShippingThreshold,
         flatShippingRate: store.flatShippingRate,
       };
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(sanitized));
+
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sanitized),
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+
       setStore(sanitized);
       setSaved(true);
       toast({ title: "Settings saved", variant: "success" });
@@ -93,7 +97,7 @@ export default function AdminSettingsPage() {
   };
 
   const update = (key: keyof StoreSettings, value: string) => {
-    setStore((prev) => ({ ...prev, [key]: value }));
+    setStore((prev) => prev ? { ...prev, [key]: value } : prev);
     setFieldErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
@@ -115,6 +119,22 @@ export default function AdminSettingsPage() {
       {children}
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={24} className="animate-spin text-jet/30" />
+      </div>
+    );
+  }
+
+  if (!store) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-jet/50 font-poppins">Could not load settings</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -181,12 +201,6 @@ export default function AdminSettingsPage() {
             <div className="flex justify-between py-2">
               <span>Last Backup</span> <span className="text-jet">N/A</span>
             </div>
-          </div>
-          <div className="mt-6 pt-4 border-t border-jet/5">
-            <Button variant="outline" size="sm" className="text-burgundy border-burgundy/20 hover:bg-burgundy/5"
-              onClick={() => { localStorage.removeItem(SETTINGS_KEY); setStore(loadSaved()); }}>
-              Reset All Data
-            </Button>
           </div>
         </Section>
       </div>

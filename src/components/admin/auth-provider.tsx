@@ -3,52 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { sanitizeEmail } from "@/lib/validation"
-
-function setAuthCookies(accessToken: string, refreshToken: string) {
-  if (typeof document === "undefined") return
-  const secure = location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `ysi_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Strict${secure}`
-  document.cookie = `ysi_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict${secure}`
-  document.cookie = `ysi_admin_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Strict${secure}`
-  document.cookie = `ysi_admin_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict${secure}`
-}
-
-function removeAuthCookies() {
-  if (typeof document === "undefined") return
-  const secure = location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `ysi_access_token=; path=/; max-age=0; SameSite=Strict${secure}`
-  document.cookie = `ysi_refresh_token=; path=/; max-age=0; SameSite=Strict${secure}`
-  document.cookie = `ysi_admin_access_token=; path=/; max-age=0; SameSite=Strict${secure}`
-  document.cookie = `ysi_admin_refresh_token=; path=/; max-age=0; SameSite=Strict${secure}`
-}
-
-function getCookieValue(name: string): string | null {
-  if (typeof document === "undefined") return null
-  const pattern = new RegExp(`(?:^|; )${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`)
-  const match = document.cookie.match(pattern)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-function decodeJWTPayload(token: string): { sub: string; email: string } | null {
-  try {
-    let payload = token.split(".")[1]
-    payload = payload.replace(/-/g, "+").replace(/_/g, "/")
-    while (payload.length % 4) payload += "="
-    const json = JSON.parse(atob(payload))
-    return { sub: json.sub, email: json.email }
-  } catch {
-    return null
-  }
-}
-
-interface AdminProfile {
-  id: string
-  name: string
-  email: string
-  avatar: string
-  role: "super-admin" | "admin" | "manager"
-  phone?: string
-}
+import { setAuthCookies, removeAuthCookies, getCookieValue } from "@/lib/auth/shared"
+import type { AdminProfile } from "@/lib/auth/shared"
 
 interface AuthState {
   user: AdminProfile | null
@@ -75,12 +31,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   })
 
   const loadUser = useCallback(async (accessToken: string): Promise<boolean> => {
-    const decoded = decodeJWTPayload(accessToken)
-    if (!decoded?.sub) {
-      setState({ user: null, isAuthenticated: false, isAdmin: false, loading: false, accessToken: null })
-      return false
-    }
-
     const { data, error } = await supabase.auth.getUser(accessToken)
     const user = data?.user
     if (error || !user) {
@@ -111,7 +61,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: true,
       isAdmin: true,
       loading: false,
-      accessToken: accessToken,
+      accessToken,
     })
     return true
   }, [])
@@ -119,7 +69,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const hydrate = async () => {
       const session = await supabase.auth.getSession()
-      const accessToken = session.data.session?.access_token || getCookieValue("ysi_access_token") || getCookieValue("ysi_admin_access_token")
+      const accessToken = session.data.session?.access_token || getCookieValue("ysi_access_token")
 
       if (accessToken) {
         await loadUser(accessToken)

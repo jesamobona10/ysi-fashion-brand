@@ -3,26 +3,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { sanitizeEmail, sanitizeString } from "@/lib/validation"
-
-function setAuthCookies(accessToken: string, refreshToken: string) {
-  if (typeof document === "undefined") return
-  const secure = location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `ysi_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Strict${secure}`
-  document.cookie = `ysi_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict${secure}`
-}
-
-function removeAuthCookies() {
-  if (typeof document === "undefined") return
-  const secure = location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `ysi_access_token=; path=/; max-age=0; SameSite=Strict${secure}`
-  document.cookie = `ysi_refresh_token=; path=/; max-age=0; SameSite=Strict${secure}`
-}
-
-interface CustomerUser {
-  id: string
-  email: string
-  name?: string
-}
+import { setAuthCookies, removeAuthCookies } from "@/lib/auth/shared"
+import type { CustomerUser } from "@/lib/auth/shared"
 
 interface AuthState {
   user: CustomerUser | null
