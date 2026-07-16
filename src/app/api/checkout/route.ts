@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   }
 
   const url = new URL(request.url)
-  const isSimulation = url.searchParams.get("simulation") === "true"
+  const isSimulation = url.searchParams.get("simulation") === "true" && process.env.NODE_ENV !== "production"
 
   const userClient = createRouteSupabaseClient(request)
   const serviceClient = createServiceSupabaseClient()
@@ -100,6 +100,8 @@ export async function POST(request: Request) {
     size: string | null
     color: string | null
   }[]
+
+  let productMap: Map<string, Record<string, unknown>> | null = null
 
   if (isSimulation) {
     normalizedItems = body.items.map((item) => ({
@@ -121,21 +123,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to verify product availability" }, { status: 500 })
     }
 
-    const productMap = new Map((products || []).map((product) => [product.id, product]))
-    const missingProducts = productIds.filter((id) => !productMap.has(id))
+    productMap = new Map((products || []).map((product) => [product.id, product]))
+    const missingProducts = productIds.filter((id) => !productMap!.has(id))
     if (missingProducts.length > 0) {
       return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 })
     }
 
+    for (const item of body.items) {
+      const product = productMap.get(normalizeItemId(item.id))
+      if (!product) continue
+      const available = Number(product.stock_qty)
+      if (available < item.quantity) {
+        return NextResponse.json({
+          error: `Insufficient stock for "${product.name}". Available: ${available}, requested: ${item.quantity}`,
+        }, { status: 400 })
+      }
+    }
+
     normalizedItems = body.items.map((item) => {
-      const product = productMap.get(normalizeItemId(item.id))!
+      const product = productMap!.get(normalizeItemId(item.id))! as Record<string, unknown>
       return {
-        product_id: product.id,
+        product_id: String(product.id),
         name: sanitizeString(product.name, 200),
         quantity: item.quantity,
         price: Number(product.price),
-        size: sanitizeString(item.size || "", 50) || null,
-        color: sanitizeString(item.color || "", 50) || null,
+        size: sanitizeString(String(item.size || ""), 50) || null,
+        color: sanitizeString(String(item.color || ""), 50) || null,
       }
     })
   }
@@ -181,7 +194,7 @@ export async function POST(request: Request) {
         .insert({
           id: user.id,
           name: sanitizeString(body.contact.name, 200),
-          email: sanitizeEmail(body.contact.email),
+          email: user.email,
           phone: sanitizePhone(body.contact.phone),
           status: "active",
           total_orders: 1,
@@ -218,22 +231,17 @@ export async function POST(request: Request) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id
-      const { data: updatedCustomer, error: updateError } = await serviceClient
+      const { error: updateError } = await serviceClient
         .from("customers")
         .update({
-          ...customerPayload,
           total_orders: Number(existingCustomer.total_orders || 0) + 1,
           total_spent: Number(existingCustomer.total_spent || 0) + total,
         })
         .eq("id", existingCustomer.id)
-        .select("id")
-        .maybeSingle()
 
-      if (updateError || !updatedCustomer) {
+      if (updateError) {
         return NextResponse.json({ error: "Failed to update customer record" }, { status: 500 })
       }
-
-      customerId = updatedCustomer.id
     } else {
       const { data: insertedCustomer, error: insertError } = await serviceClient
         .from("customers")
@@ -307,6 +315,22 @@ export async function POST(request: Request) {
 
   if (timelineError) {
     return NextResponse.json({ error: "Failed to save order timeline" }, { status: 500 })
+  }
+
+  if (productMap) {
+    for (const item of normalizedItems) {
+      const product = productMap.get(item.product_id)
+      if (!product) continue
+      const currentStock = Number(product.stock_qty)
+      const { error: stockError } = await serviceClient
+        .from("products")
+        .update({ stock_qty: Math.max(0, currentStock - item.quantity) })
+        .eq("id", item.product_id)
+
+      if (stockError) {
+        console.error(`Failed to decrement stock for product ${item.product_id}:`, stockError)
+      }
+    }
   }
 
   return NextResponse.json({

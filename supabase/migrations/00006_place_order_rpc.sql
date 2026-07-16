@@ -60,6 +60,7 @@ exception when others then
 end;
 $$;
 
--- Revoke execute from anon, grant to authenticated and service_role
+-- Revoke execute from anon and authenticated, only service_role can call
 revoke execute on function public.place_order from anon;
-grant execute on function public.place_order to authenticated, service_role;
+revoke execute on function public.place_order from authenticated;
+grant execute on function public.place_order to service_role;

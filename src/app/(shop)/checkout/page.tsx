@@ -132,7 +132,7 @@ export default function CheckoutPage() {
         </div>
 
         {error && <div className="mb-6 p-4 bg-burgundy/10 border border-burgundy/20 text-burgundy text-sm font-poppins">{error}</div>}
-        {typeof window !== "undefined" && window.location.search.includes("simulation=true") && (
+        {process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location.search.includes("simulation=true") && (
           <div className="mb-6 p-3 bg-gold/10 border border-gold/20 text-gold text-xs font-poppins text-center">
             Simulation Mode — No real charge will be made
           </div>
