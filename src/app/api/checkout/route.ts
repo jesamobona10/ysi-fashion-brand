@@ -10,6 +10,7 @@ import {
   validateEnum,
   ALLOWED_PAYMENT_METHODS,
 } from "@/lib/validation"
+import { checkRateLimit, rateLimitKey } from "@/lib/server/rate-limit"
 
 export const runtime = "nodejs"
 
@@ -44,6 +45,8 @@ function normalizeItemId(id: string) {
   return id.split("_")[0]
 }
 
+const processedOrderIds = new Set<string>()
+
 export async function POST(request: Request) {
   let body: CheckoutRequestBody
 
@@ -51,6 +54,22 @@ export async function POST(request: Request) {
     body = (await request.json()) as CheckoutRequestBody
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
+  const idempotencyKey = request.headers.get("Idempotency-Key") || request.headers.get("idempotency-key")
+
+  if (idempotencyKey) {
+    if (processedOrderIds.has(idempotencyKey)) {
+      return NextResponse.json({ error: "Duplicate request" }, { status: 409 })
+    }
+    processedOrderIds.add(idempotencyKey)
+    setTimeout(() => processedOrderIds.delete(idempotencyKey), 86_400_000)
+  }
+
+  const rateCheck = checkRateLimit(rateLimitKey("checkout", ip), { maxRequests: 5, windowMs: 60_000 })
+  if (!rateCheck.allowed) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 })
   }
 
   const contactErrors = validateCheckoutContact(body.contact)
@@ -99,7 +118,7 @@ export async function POST(request: Request) {
       .in("id", productIds)
 
     if (productsError) {
-      return NextResponse.json({ error: `Products lookup failed: ${productsError.message}` }, { status: 500 })
+      return NextResponse.json({ error: "Failed to verify product availability" }, { status: 500 })
     }
 
     const productMap = new Map((products || []).map((product) => [product.id, product]))
@@ -139,7 +158,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (fetchError) {
-      return NextResponse.json({ error: `Customer lookup failed: ${fetchError.message}` }, { status: 500 })
+      return NextResponse.json({ error: "Failed to verify customer record" }, { status: 500 })
     }
 
     if (existingCustomer) {
@@ -154,7 +173,7 @@ export async function POST(request: Request) {
         .eq("id", user.id)
 
       if (updateError) {
-        return NextResponse.json({ error: `Customer update failed: ${updateError.message}` }, { status: 500 })
+        return NextResponse.json({ error: "Failed to update customer record" }, { status: 500 })
       }
     } else {
       const { error: insertError } = await serviceClient
@@ -170,7 +189,7 @@ export async function POST(request: Request) {
         })
 
       if (insertError) {
-        return NextResponse.json({ error: `Customer insert failed: ${insertError.message}` }, { status: 500 })
+        return NextResponse.json({ error: "Failed to create customer record" }, { status: 500 })
       }
     }
   } else {
@@ -194,7 +213,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (existingCustomerError) {
-      return NextResponse.json({ error: `Customer lookup failed: ${existingCustomerError.message}` }, { status: 500 })
+      return NextResponse.json({ error: "Failed to verify customer record" }, { status: 500 })
     }
 
     if (existingCustomer) {
@@ -211,7 +230,7 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (updateError || !updatedCustomer) {
-        return NextResponse.json({ error: `Customer update failed: ${updateError?.message || "No data returned"}` }, { status: 500 })
+        return NextResponse.json({ error: "Failed to update customer record" }, { status: 500 })
       }
 
       customerId = updatedCustomer.id
@@ -227,7 +246,7 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (insertError || !insertedCustomer) {
-        return NextResponse.json({ error: `Customer insert failed: ${insertError?.message || "No data returned"}` }, { status: 500 })
+        return NextResponse.json({ error: "Failed to create customer record" }, { status: 500 })
       }
 
       customerId = insertedCustomer.id
@@ -261,7 +280,7 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (orderError || !order) {
-    return NextResponse.json({ error: `Failed to create order: ${orderError?.message || "No data returned"}` }, { status: 500 })
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
   }
 
   const orderItems = normalizedItems.map((item) => ({
@@ -276,7 +295,7 @@ export async function POST(request: Request) {
 
   const { error: orderItemsError } = await serviceClient.from("order_items").insert(orderItems)
   if (orderItemsError) {
-    return NextResponse.json({ error: `Failed to save order items: ${orderItemsError.message}` }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save order items" }, { status: 500 })
   }
 
   const { error: timelineError } = await serviceClient.from("order_timeline").insert({
@@ -287,7 +306,7 @@ export async function POST(request: Request) {
   })
 
   if (timelineError) {
-    return NextResponse.json({ error: `Failed to save order timeline: ${timelineError.message}` }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save order timeline" }, { status: 500 })
   }
 
   return NextResponse.json({

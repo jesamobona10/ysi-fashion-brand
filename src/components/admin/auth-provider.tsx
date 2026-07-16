@@ -6,18 +6,20 @@ import { sanitizeEmail } from "@/lib/validation"
 
 function setAuthCookies(accessToken: string, refreshToken: string) {
   if (typeof document === "undefined") return
-  document.cookie = `ysi_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Lax`
-  document.cookie = `ysi_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
-  document.cookie = `ysi_admin_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Lax`
-  document.cookie = `ysi_admin_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+  const secure = location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `ysi_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Strict${secure}`
+  document.cookie = `ysi_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict${secure}`
+  document.cookie = `ysi_admin_access_token=${accessToken}; path=/; max-age=${60 * 60}; SameSite=Strict${secure}`
+  document.cookie = `ysi_admin_refresh_token=${refreshToken}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict${secure}`
 }
 
 function removeAuthCookies() {
   if (typeof document === "undefined") return
-  document.cookie = "ysi_access_token=; path=/; max-age=0; SameSite=Lax"
-  document.cookie = "ysi_refresh_token=; path=/; max-age=0; SameSite=Lax"
-  document.cookie = "ysi_admin_access_token=; path=/; max-age=0; SameSite=Lax"
-  document.cookie = "ysi_admin_refresh_token=; path=/; max-age=0; SameSite=Lax"
+  const secure = location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `ysi_access_token=; path=/; max-age=0; SameSite=Strict${secure}`
+  document.cookie = `ysi_refresh_token=; path=/; max-age=0; SameSite=Strict${secure}`
+  document.cookie = `ysi_admin_access_token=; path=/; max-age=0; SameSite=Strict${secure}`
+  document.cookie = `ysi_admin_refresh_token=; path=/; max-age=0; SameSite=Strict${secure}`
 }
 
 function getCookieValue(name: string): string | null {

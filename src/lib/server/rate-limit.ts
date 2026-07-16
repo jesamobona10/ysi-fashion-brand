@@ -4,6 +4,24 @@ interface RateLimitEntry {
 }
 
 const store = new Map<string, RateLimitEntry>()
+const CLEANUP_INTERVAL = 60_000
+
+let cleanupTimer: ReturnType<typeof setInterval> | null = null
+
+function startCleanup(): void {
+  if (cleanupTimer) return
+  cleanupTimer = setInterval(() => {
+    const now = Date.now()
+    for (const [key, entry] of store) {
+      if (now >= entry.resetAt) store.delete(key)
+    }
+    if (store.size === 0 && cleanupTimer) {
+      clearInterval(cleanupTimer)
+      cleanupTimer = null
+    }
+  }, CLEANUP_INTERVAL)
+  if (typeof cleanupTimer?.unref === "function") cleanupTimer.unref()
+}
 
 export interface RateLimitConfig {
   maxRequests: number
@@ -12,6 +30,7 @@ export interface RateLimitConfig {
 
 export function checkRateLimit(key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; resetAt: number } {
   const now = Date.now()
+  startCleanup()
   const entry = store.get(key)
 
   if (!entry || now >= entry.resetAt) {
@@ -29,4 +48,8 @@ export function checkRateLimit(key: string, config: RateLimitConfig): { allowed:
 
 export function rateLimitKey(prefix: string, identifier: string): string {
   return `${prefix}:${identifier}`
+}
+
+export function resetRateLimits(): void {
+  store.clear()
 }
