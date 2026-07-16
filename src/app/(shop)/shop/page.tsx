@@ -8,6 +8,7 @@ import { formatPrice, cn } from "@/lib/utils"
 import { staggerContainer, fadeUp } from "@/lib/motion"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/providers/cart-provider"
+import { useToast } from "@/components/ui/toast"
 import {
   SlidersHorizontal,
   Grid3X3,
