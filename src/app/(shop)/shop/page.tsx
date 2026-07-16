@@ -365,18 +365,20 @@ export default function ShopPage() {
                 <button onClick={clearFilters} className="mt-4 h-10 px-6 border border-jet/10 text-sm font-poppins text-jet/60 hover:bg-jet hover:text-cream transition-all">Clear Filters</button>
               </div>
             ) : (
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-                className={cn(view === "grid" ? "grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6" : "flex flex-col gap-6")}>
-                {filtered.map((product) => (<ProductCard key={product.id} product={product} view={view} />))}
-              </motion.div>
-              {hasMore && filtered.length >= products.length && (
-                <div className="text-center mt-10">
-                  <button onClick={loadMore} disabled={loadingMore}
-                    className="h-11 px-8 border border-jet/10 text-xs font-poppins uppercase tracking-luxe text-jet/60 hover:bg-jet hover:text-cream transition-all disabled:opacity-50">
-                    {loadingMore ? "Loading..." : `Load More (${products.length - filtered.length + filtered.length}/${totalProducts})`}
-                  </button>
-                </div>
-              )}
+              <>
+                <motion.div variants={staggerContainer} initial="hidden" animate="visible"
+                  className={cn(view === "grid" ? "grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6" : "flex flex-col gap-6")}>
+                  {filtered.map((product) => (<ProductCard key={product.id} product={product} view={view} />))}
+                </motion.div>
+                {hasMore && filtered.length >= products.length && (
+                  <div className="text-center mt-10">
+                    <button onClick={loadMore} disabled={loadingMore}
+                      className="h-11 px-8 border border-jet/10 text-xs font-poppins uppercase tracking-luxe text-jet/60 hover:bg-jet hover:text-cream transition-all disabled:opacity-50">
+                      {loadingMore ? "Loading..." : `Load More (${products.length}/${totalProducts})`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
