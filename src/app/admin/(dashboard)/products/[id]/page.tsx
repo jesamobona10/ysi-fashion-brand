@@ -223,7 +223,16 @@ export default function AdminProductEditPage() {
     setSaving(true)
     setError("")
     try {
-      const dbValues = toDBValues(form)
+      let slug = toSlug(form.name)
+
+      if (isNew) {
+        const { data: existing } = await supabase.from("products").select("id").eq("slug", slug).maybeSingle()
+        if (existing) {
+          slug = `${slug}-${Date.now().toString(36)}`
+        }
+      }
+
+      const dbValues = { ...toDBValues(form), slug }
 
       if (isNew) {
         const { error: insertError } = await supabase.from("products").insert(dbValues)
@@ -237,8 +246,9 @@ export default function AdminProductEditPage() {
       setSaved(true)
       setTimeout(() => router.push("/admin/products"), 1500)
     } catch (err) {
-      toast({ title: "Save failed", description: String(err), variant: "error" })
-      setError(String(err))
+      const msg = (err as { message?: string })?.message || "An unexpected error occurred"
+      toast({ title: "Save failed", description: msg, variant: "error" })
+      setError(msg)
     } finally {
       setSaving(false)
     }
