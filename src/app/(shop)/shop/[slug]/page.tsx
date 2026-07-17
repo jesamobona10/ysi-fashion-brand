@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/providers/cart-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/components/ui/toast"
+import { friendlyError } from "@/lib/friendly-error"
 import {
-  Heart, Share2, ChevronLeft, ChevronRight, Star, Minus, Plus, Truck, Shield, RotateCcw, MessageCircle,
+  Heart, Share2, ChevronLeft, ChevronRight, Star, Minus, Plus, Truck, Shield, RotateCcw, MessageCircle, AlertTriangle, Loader2, Check, X
 } from "lucide-react"
 
 interface Product {
@@ -71,6 +72,9 @@ export default function ProductPage() {
   const [activeTab, setActiveTab] = useState<"details" | "reviews">("details")
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 })
   const [inWishlist, setInWishlist] = useState(false)
+  const [reviews, setReviews] = useState<{ id: string; rating: number; title: string | null; body: string | null; customer: { name: string } | null; created_at: string; images: string[] }[]>([])
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: "", body: "" })
+  const [submittingReview, setSubmittingReview] = useState(false)
   const { addItem, toggleCart } = useCart()
   const { isAuthenticated } = useAuth()
   const { toast } = useToast()
@@ -118,6 +122,33 @@ export default function ProductPage() {
       localStorage.setItem("ysi_recently_viewed", JSON.stringify(updated))
     }
   }, [product?.id, isAuthenticated])
+
+  useEffect(() => {
+    if (!product) return
+    fetch(`/api/products/${product.slug}/reviews`).then((r) => r.json()).then((data) => {
+      if (data.reviews) setReviews(data.reviews)
+    }).catch(() => {})
+  }, [product?.slug, product])
+
+  const handleSubmitReview = async () => {
+    if (!product || !isAuthenticated) return
+    setSubmittingReview(true)
+    try {
+      const res = await fetch(`/api/products/${product.slug}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reviewForm),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to submit review")
+      toast({ title: "Review submitted", description: "Your review is pending moderation.", variant: "success" })
+      setReviewForm({ rating: 5, title: "", body: "" })
+    } catch (err) {
+      toast({ title: "Failed to submit", description: friendlyError(err), variant: "error" })
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   const toggleWishlist = async () => {
     if (!isAuthenticated || !product) {
@@ -282,16 +313,64 @@ export default function ProductPage() {
                 </div>
               </motion.div>
             ) : (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
-                <div className="flex items-start gap-4 p-6 bg-ivory">
-                  <img src="https://ui-avatars.com/api/?name=Amara+O&background=1a1a1a&color=d4af37" alt="Reviewer" className="w-12 h-12 rounded-full object-cover shrink-0" />
-                  <div>
-                    <div className="flex items-center gap-2"><p className="font-poppins text-sm font-medium text-jet">Amara O.</p><div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => (<Star key={i} size={12} className="text-gold fill-gold" />))}</div></div>
-                    <p className="text-jet/40 text-xs mt-0.5">Verified Purchase &bull; 2 weeks ago</p>
-                    <p className="text-jet/70 text-sm mt-3 leading-relaxed">The quality of this piece is exceptional. YSI never disappoints.</p>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl space-y-6">
+                {reviews.length > 0 ? (
+                  reviews.map((review) => (
+                    <div key={review.id} className="flex items-start gap-4 p-6 bg-ivory">
+                      <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center text-gold text-sm font-poppins font-medium shrink-0">
+                        {(review.customer?.name || "A").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-poppins text-sm font-medium text-jet">{review.customer?.name || "Anonymous"}</p>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} size={12} className={i < review.rating ? "text-gold fill-gold" : "text-jet/10"} />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-jet/40 text-xs mt-0.5">Verified Purchase &bull; {new Date(review.created_at).toLocaleDateString()}</p>
+                        {review.title && <p className="font-poppins text-sm text-jet font-medium mt-2">{review.title}</p>}
+                        {review.body && <p className="text-jet/70 text-sm mt-1 leading-relaxed">{review.body}</p>}
+                        {review.images?.length > 0 && (
+                          <div className="flex gap-2 mt-3">
+                            {review.images.map((img, i) => (
+                              <img key={i} src={img} alt="" className="w-16 h-16 object-cover rounded" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-jet/40 text-sm font-poppins text-center py-8">No reviews yet. Be the first to review.</p>
+                )}
+
+                {/* Review Form */}
+                {isAuthenticated && (
+                  <div className="p-6 border border-jet/10">
+                    <h4 className="font-poppins text-sm text-jet font-medium mb-4">Write a Review</h4>
+                    <div className="flex gap-1 mb-4">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} onClick={() => setReviewForm((p) => ({ ...p, rating: star }))}>
+                          <Star size={18} className={star <= reviewForm.rating ? "text-gold fill-gold" : "text-jet/20"} />
+                        </button>
+                      ))}
+                    </div>
+                    <input type="text" value={reviewForm.title} onChange={(e) => setReviewForm((p) => ({ ...p, title: e.target.value.slice(0, 200) }))}
+                      placeholder="Review title (optional)" maxLength={200}
+                      className="w-full h-11 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 mb-3" />
+                    <textarea value={reviewForm.body} onChange={(e) => setReviewForm((p) => ({ ...p, body: e.target.value.slice(0, 2000) }))}
+                      rows={3} placeholder="Share your experience..." maxLength={2000}
+                      className="w-full p-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 resize-none mb-3" />
+                    <button onClick={handleSubmitReview} disabled={submittingReview}
+                      className="h-10 px-5 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe hover:bg-gold hover:text-jet transition-all disabled:opacity-50">
+                      {submittingReview ? <Loader2 size={12} className="animate-spin" /> : "Submit Review"}
+                    </button>
                   </div>
-                </div>
-                <div className="mt-6 p-6 border border-jet/10">
+                )}
+
+                <div className="p-6 border border-jet/10">
                   <div className="flex items-center gap-3"><MessageCircle size={16} className="text-gold" /><span className="font-poppins text-sm text-jet font-medium">Have a question?</span></div>
                   <p className="text-jet/50 text-sm mt-1">Our styling team is here to help. Reach out via live chat or WhatsApp.</p>
                   <button className="mt-3 h-9 px-5 border border-jet/10 text-xs font-poppins uppercase tracking-luxe text-jet/60 hover:bg-jet hover:text-cream transition-all">Ask a Question</button>
