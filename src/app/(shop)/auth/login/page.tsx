@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
 import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
+import { Captcha } from "@/components/ui/captcha"
 
 export default function LoginPage() {
   const { login, signInWithGoogle } = useAuth()
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" })
+  const [captchaToken, setCaptchaToken] = useState("")
   const { toast } = useToast()
 
   const validate = (): boolean => {
@@ -46,6 +48,10 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     if (!validate()) return
+    if (!captchaToken) {
+      setError("Please complete the security check")
+      return
+    }
     setSubmitting(true)
     try {
       const lockRes = await fetch("/api/auth/lockout", {
@@ -123,6 +129,8 @@ export default function LoginPage() {
             <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={9} /></span>
             <p className="text-jet/70 text-xs font-poppins">{error}</p>
           </div>}
+
+          <Captcha onVerify={setCaptchaToken} />
 
           <Button type="submit" variant="gold" className="w-full h-12" disabled={submitting}>
             {submitting ? <Loader2 size={16} className="animate-spin" /> : "Sign In"}

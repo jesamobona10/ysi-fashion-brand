@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
+import { AccessibleApp } from "@/components/ui/accessible-app";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ysi-iota.vercel.app"),
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-cream text-jet font-sans" suppressHydrationWarning>
         <ToastProvider>
+          <AccessibleApp />
           {children}
         </ToastProvider>
       </body>

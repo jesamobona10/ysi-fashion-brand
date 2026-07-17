@@ -7,6 +7,7 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff, Loader2, Mail, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
+import { Captcha } from "@/components/ui/captcha"
 import { isValidEmail } from "@/lib/validation"
 import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
@@ -23,6 +24,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [confirmEmail, setConfirmEmail] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({ name: "", email: "", password: "" })
+  const [captchaToken, setCaptchaToken] = useState("")
   const { toast } = useToast()
 
   const validate = (): boolean => {
@@ -54,6 +56,7 @@ export default function RegisterPage() {
     e.preventDefault()
     if (!validate()) return
     if (submitting || cooldown > 0) return
+    if (!captchaToken) { setError("Please complete the security check"); return }
 
     setError("")
     setConfirmEmail(false)
@@ -147,6 +150,8 @@ export default function RegisterPage() {
                 <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={9} /></span>
                 <p className="text-jet/70 text-xs font-poppins">{error}</p>
               </div>}
+
+              <Captcha onVerify={setCaptchaToken} />
 
               <Button type="submit" variant="gold" className="w-full h-12" disabled={submitting || cooldown > 0}>
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : cooldown > 0 ? `Wait ${cooldown}s` : "Create Account"}
