@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { ArrowLeft, Minus, Plus, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Minus, Plus, Trash2, Loader2, AlertTriangle, Check } from "lucide-react"
 import { useCart } from "@/components/providers/cart-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { formatPrice } from "@/lib/utils"
@@ -16,8 +16,15 @@ const paymentMethods = [
   { value: "cash-on-delivery", label: "Cash on Delivery", desc: "Pay when your order arrives" },
 ]
 
+const deliveryMethods = [
+  { value: "standard", label: "Standard Delivery", desc: "5–7 business days", price: 0 },
+  { value: "express", label: "Express Delivery", desc: "2–3 business days", price: 5000 },
+  { value: "next-day", label: "Next Day Delivery", desc: "Order before 2PM for next-day", price: 12000 },
+]
+
 interface FieldErrors {
   name?: string; email?: string; phone?: string; street?: string; city?: string
+  b_street?: string; b_city?: string; b_state?: string
 }
 
 export default function CheckoutPage() {
@@ -26,19 +33,33 @@ export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth()
 
   const [contact, setContact] = useState({ name: "", email: "", phone: "" })
+  const [sameAsShipping, setSameAsShipping] = useState(true)
+  const [billing, setBilling] = useState({ street: "", city: "", state: "", country: "Nigeria" })
 
   useEffect(() => {
     if (isAuthenticated && user?.email && !contact.email) {
       setContact((prev) => ({ ...prev, email: user.email! }))
     }
   }, [isAuthenticated, user, contact.email])
+
   const [address, setAddress] = useState({ street: "", city: "", state: "", country: "Nigeria" })
   const [paymentMethod, setPaymentMethod] = useState("cash-on-delivery")
+  const [deliveryMethod, setDeliveryMethod] = useState("standard")
+  const [giftNote, setGiftNote] = useState("")
   const [notes, setNotes] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
+
+  const deliveryFee = deliveryMethods.find((d) => d.value === deliveryMethod)?.price || 0
+  const finalTotal = totalPrice + deliveryFee
+
+  useEffect(() => {
+    if (sameAsShipping) {
+      setBilling({ ...address })
+    }
+  }, [sameAsShipping, address])
 
   const validate = (): boolean => {
     const errors: FieldErrors = {}
@@ -55,6 +76,10 @@ export default function CheckoutPage() {
     else if (!isValidPhone(phone)) { errors.phone = "Please enter a valid phone number"; valid = false }
     if (!address.street.trim()) { errors.street = "Street address is required"; valid = false }
     if (!address.city.trim()) { errors.city = "City is required"; valid = false }
+    if (!sameAsShipping) {
+      if (!billing.street.trim()) { errors.b_street = "Billing street is required"; valid = false }
+      if (!billing.city.trim()) { errors.b_city = "Billing city is required"; valid = false }
+    }
     setFieldErrors(errors)
     return valid
   }
@@ -80,6 +105,15 @@ export default function CheckoutPage() {
             state: address.state.trim(),
             country: address.country,
           },
+          billingAddress: sameAsShipping ? null : {
+            street: billing.street.trim(),
+            city: billing.city.trim(),
+            state: billing.state.trim(),
+            country: billing.country,
+          },
+          deliveryMethod,
+          deliveryFee,
+          giftNote: sanitizeString(giftNote, 500),
           paymentMethod,
           notes: sanitizeString(notes, 2000),
           items: state.items.map((item) => ({
@@ -137,11 +171,6 @@ export default function CheckoutPage() {
           <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={12} /></span>
           <p className="text-jet/70 text-sm font-poppins leading-relaxed">{error}</p>
         </div>}
-        {process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location.search.includes("simulation=true") && (
-          <div className="mb-6 p-3 bg-gold/10 border border-gold/20 text-gold text-xs font-poppins text-center">
-            Simulation Mode — No real charge will be made
-          </div>
-        )}
 
         <div className="grid lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3 space-y-6">
@@ -173,6 +202,24 @@ export default function CheckoutPage() {
               </div>
             </Section>
 
+            <Section title="Delivery Method">
+              <div className="space-y-3">
+                {deliveryMethods.map((dm) => (
+                  <button key={dm.value} onClick={() => setDeliveryMethod(dm.value)}
+                    className={`w-full flex items-center gap-4 p-4 border transition-all ${deliveryMethod === dm.value ? "border-gold bg-gold/5" : "border-jet/10 hover:border-jet/30"}`}>
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${deliveryMethod === dm.value ? "border-gold" : "border-jet/20"}`}>
+                      {deliveryMethod === dm.value && <span className="w-2.5 h-2.5 rounded-full bg-gold" />}
+                    </span>
+                    <div className="text-left flex-1">
+                      <p className="font-poppins text-sm text-jet font-medium">{dm.label}</p>
+                      <p className="text-jet/40 text-xs">{dm.desc}</p>
+                    </div>
+                    <span className="font-poppins text-sm text-jet font-medium">{dm.price === 0 ? "Free" : formatPrice(dm.price)}</span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+
             <Section title="Delivery Address">
               <div className="space-y-4">
                 <div>
@@ -196,6 +243,31 @@ export default function CheckoutPage() {
               </div>
             </Section>
 
+            <Section title="Billing Address">
+              <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                <input type="checkbox" checked={sameAsShipping} onChange={() => setSameAsShipping(!sameAsShipping)}
+                  className="w-4 h-4 accent-gold" />
+                <span className="text-xs font-poppins text-jet/60">Same as delivery address</span>
+              </label>
+              {!sameAsShipping && (
+                <div className="space-y-4">
+                  <input type="text" placeholder="Street Address" value={billing.street} onChange={(e) => { setBilling({ ...billing, street: e.target.value }); setFieldErrors((p) => ({ ...p, b_street: undefined })) }}
+                    className={`w-full h-12 px-4 bg-cream border text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 ${fieldErrors.b_street ? "border-burgundy" : "border-jet/10"}`} />
+                  {fieldErrors.b_street && <p className="text-burgundy text-[10px] font-poppins mt-1">{fieldErrors.b_street}</p>}
+                  <div className="grid grid-cols-3 gap-4">
+                    <input type="text" placeholder="City" value={billing.city} onChange={(e) => { setBilling({ ...billing, city: e.target.value }); setFieldErrors((p) => ({ ...p, b_city: undefined })) }}
+                      className={`w-full h-12 px-4 bg-cream border text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 ${fieldErrors.b_city ? "border-burgundy" : "border-jet/10"}`} />
+                    <input type="text" placeholder="State" value={billing.state} onChange={(e) => setBilling({ ...billing, state: e.target.value })}
+                      className="h-12 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50" />
+                    <select value={billing.country} onChange={(e) => setBilling({ ...billing, country: e.target.value })}
+                      className="h-12 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50">
+                      {ALLOWED_COUNTRIES.map((c) => (<option key={c} value={c}>{c}</option>))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </Section>
+
             <Section title="Payment Method">
               <div className="space-y-3">
                 {paymentMethods.map((pm) => (
@@ -213,8 +285,14 @@ export default function CheckoutPage() {
               </div>
             </Section>
 
+            <Section title="Gift Note (Optional)">
+              <textarea value={giftNote} onChange={(e) => setGiftNote(e.target.value.slice(0, 500))} rows={2}
+                placeholder="Add a personal message for the recipient..."
+                className="w-full p-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 resize-none" />
+            </Section>
+
             <Section title="Order Notes (Optional)">
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 2000))} rows={3}
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 2000))} rows={2}
                 placeholder="Any special requests or delivery instructions..."
                 className="w-full p-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 resize-none" />
             </Section>
@@ -249,13 +327,13 @@ export default function CheckoutPage() {
               </div>
               <div className="p-6 border-t border-jet/5 space-y-3">
                 <div className="flex justify-between text-sm font-poppins"><span className="text-jet/50">Subtotal</span><span className="text-jet font-medium">{formatPrice(totalPrice)}</span></div>
-                <div className="flex justify-between text-sm font-poppins"><span className="text-jet/50">Shipping</span><span className="text-emerald font-medium">Free</span></div>
+                <div className="flex justify-between text-sm font-poppins"><span className="text-jet/50">Delivery</span><span className={`font-medium ${deliveryFee === 0 ? "text-emerald" : "text-jet"}`}>{deliveryFee === 0 ? "Free" : formatPrice(deliveryFee)}</span></div>
                 <div className="gold-divider" />
-                <div className="flex justify-between text-base font-poppins"><span className="text-jet font-medium">Total</span><span className="text-jet font-bold">{formatPrice(totalPrice)}</span></div>
+                <div className="flex justify-between text-base font-poppins"><span className="text-jet font-medium">Total</span><span className="text-jet font-bold">{formatPrice(finalTotal)}</span></div>
                 <p className="text-[9px] font-poppins text-jet/30 mt-1 text-center">Cash or Transfer on Delivery</p>
                 <button onClick={handlePlaceOrder} disabled={submitting}
                   className="w-full h-12 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe flex items-center justify-center gap-2 hover:bg-gold hover:text-jet transition-all duration-300 disabled:opacity-50">
-                  {submitting ? <><Loader2 size={14} className="animate-spin" /> Placing Order...</> : <>Place Order &mdash; {formatPrice(totalPrice)}</>}
+                  {submitting ? <><Loader2 size={14} className="animate-spin" /> Placing Order...</> : <>Place Order &mdash; {formatPrice(finalTotal)}</>}
                 </button>
               </div>
             </div>

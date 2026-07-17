@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Check, ArrowLeft } from "lucide-react";
+import { Check, ArrowLeft, Eye } from "lucide-react";
 
 function ConfirmationContent() {
   const searchParams = useSearchParams();
@@ -25,6 +25,13 @@ function ConfirmationContent() {
         </div>
       )}
       <div className="mt-8 space-y-3">
+        {orderNumber && (
+          <Link href={`/orders/${orderNumber}`}
+            className="inline-flex items-center justify-center h-12 px-8 border border-jet/10 text-jet text-[10px] font-poppins uppercase tracking-luxe hover:bg-jet hover:text-cream transition-all duration-300 gap-2">
+            <Eye size={14} /> Track Order
+          </Link>
+        )}
+        <br />
         <Link href="/shop"
           className="inline-flex items-center h-12 px-8 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe hover:bg-gold hover:text-jet transition-all duration-300">
           Continue Shopping

@@ -25,17 +25,12 @@ interface CheckoutItemInput {
 }
 
 interface CheckoutRequestBody {
-  contact: {
-    name: string
-    email: string
-    phone: string
-  }
-  address: {
-    street: string
-    city: string
-    state: string
-    country: string
-  }
+  contact: { name: string; email: string; phone: string }
+  address: { street: string; city: string; state: string; country: string }
+  billingAddress?: { street: string; city: string; state: string; country: string } | null
+  deliveryMethod: string
+  deliveryFee: number
+  giftNote?: string
   paymentMethod: string
   notes?: string
   items: CheckoutItemInput[]
@@ -83,9 +78,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 })
   }
 
-  const url = new URL(request.url)
-  const isSimulation = url.searchParams.get("simulation") === "true" && process.env.NODE_ENV !== "production"
-
   const userClient = createRouteSupabaseClient(request)
   const serviceClient = createServiceSupabaseClient()
 
@@ -103,62 +95,50 @@ export async function POST(request: Request) {
 
   let productMap: Map<string, Record<string, unknown>> | null = null
 
-  if (isSimulation) {
-    normalizedItems = body.items.map((item) => ({
-      product_id: normalizeItemId(item.id),
-      name: sanitizeString(item.name, 200),
-      quantity: item.quantity,
-      price: Number(item.price) || 0,
-      size: sanitizeString(item.size || "", 50) || null,
-      color: sanitizeString(item.color || "", 50) || null,
-    }))
-  } else {
-    const productIds = body.items.map((item) => normalizeItemId(item.id))
-    const { data: products, error: productsError } = await serviceClient
-      .from("products")
-      .select("id, name, slug, price, in_stock, stock_qty, low_stock_threshold")
-      .in("id", productIds)
+  const productIds = body.items.map((item) => normalizeItemId(item.id))
+  const { data: products, error: productsError } = await serviceClient
+    .from("products")
+    .select("id, name, slug, price, in_stock, stock_qty, low_stock_threshold")
+    .in("id", productIds)
 
-    if (productsError) {
-      return NextResponse.json({ error: "Failed to verify product availability" }, { status: 500 })
-    }
-
-    productMap = new Map((products || []).map((product) => [product.id, product]))
-    const missingProducts = productIds.filter((id) => !productMap!.has(id))
-    if (missingProducts.length > 0) {
-      return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 })
-    }
-
-    for (const item of body.items) {
-      const product = productMap.get(normalizeItemId(item.id))
-      if (!product) continue
-      const available = Number(product.stock_qty)
-      if (available < item.quantity) {
-        return NextResponse.json({
-          error: `Insufficient stock for "${product.name}". Available: ${available}, requested: ${item.quantity}`,
-        }, { status: 400 })
-      }
-    }
-
-    normalizedItems = body.items.map((item) => {
-      const product = productMap!.get(normalizeItemId(item.id))! as Record<string, unknown>
-      return {
-        product_id: String(product.id),
-        name: sanitizeString(product.name, 200),
-        quantity: item.quantity,
-        price: Number(product.price),
-        size: sanitizeString(String(item.size || ""), 50) || null,
-        color: sanitizeString(String(item.color || ""), 50) || null,
-      }
-    })
+  if (productsError) {
+    return NextResponse.json({ error: "Failed to verify product availability" }, { status: 500 })
   }
+
+  productMap = new Map((products || []).map((product) => [product.id, product]))
+  const missingProducts = productIds.filter((id) => !productMap!.has(id))
+  if (missingProducts.length > 0) {
+    return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 })
+  }
+
+  for (const item of body.items) {
+    const product = productMap.get(normalizeItemId(item.id))
+    if (!product) continue
+    const available = Number(product.stock_qty)
+    if (available < item.quantity) {
+      return NextResponse.json({
+        error: `Insufficient stock for "${product.name}". Available: ${available}, requested: ${item.quantity}`,
+      }, { status: 400 })
+    }
+  }
+
+  normalizedItems = body.items.map((item) => {
+    const product = productMap!.get(normalizeItemId(item.id))! as Record<string, unknown>
+    return {
+      product_id: String(product.id),
+      name: sanitizeString(product.name, 200),
+      quantity: item.quantity,
+      price: Number(product.price),
+      size: sanitizeString(String(item.size || ""), 50) || null,
+      color: sanitizeString(String(item.color || ""), 50) || null,
+    }
+  })
 
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shipping = subtotal >= 150000 ? 0 : 5000
-  const total = subtotal + shipping
+  const total = subtotal + shipping + (body.deliveryFee || 0)
   const now = new Date().toISOString()
-  const prefix = isSimulation ? "SIM" : "YSI"
-  const orderNumber = `${prefix}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
+  const orderNumber = `YSI-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
 
   let customerId: string
 
@@ -245,11 +225,7 @@ export async function POST(request: Request) {
     } else {
       const { data: insertedCustomer, error: insertError } = await serviceClient
         .from("customers")
-        .insert({
-          ...customerPayload,
-          total_orders: 1,
-          total_spent: total,
-        })
+        .insert(customerPayload)
         .select("id")
         .maybeSingle()
 
@@ -261,9 +237,16 @@ export async function POST(request: Request) {
     }
   }
 
-  const notes = isSimulation
-    ? `[SIMULATION] ${sanitizeString(body.notes || "", 2000)}`
-    : sanitizeString(body.notes || "", 2000)
+  const billingAddr = body.billingAddress
+    ? {
+        street: sanitizeString(body.billingAddress.street, 200),
+        city: sanitizeString(body.billingAddress.city, 120),
+        state: sanitizeString(body.billingAddress.state, 120),
+        country: sanitizeString(body.billingAddress.country, 120),
+      }
+    : null
+
+  const notes = sanitizeString(body.notes || "", 2000)
 
   const { data: orderResult, error: orderRpcError } = await serviceClient.rpc("place_order", {
     p_order_number: orderNumber,
@@ -278,6 +261,10 @@ export async function POST(request: Request) {
       state: sanitizeString(body.address.state, 120),
       country: sanitizeString(body.address.country, 120),
     },
+    p_billing_address: billingAddr,
+    p_delivery_method: body.deliveryMethod,
+    p_delivery_fee: body.deliveryFee || 0,
+    p_gift_note: sanitizeString(body.giftNote || "", 500),
     p_notes: notes,
     p_items: normalizedItems.map((item) => ({
       product_id: item.product_id,
