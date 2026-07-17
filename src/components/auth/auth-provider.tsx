@@ -22,6 +22,7 @@ interface RegisterResult {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   register: (email: string, password: string, name: string) => Promise<RegisterResult>
+  signInWithGoogle: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -149,6 +150,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) {
+      setState((s) => ({ ...s, loading: false }))
+      console.error("Google sign-in error:", error.message)
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     removeAuthCookies()
@@ -156,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, signInWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   )

@@ -15,6 +15,8 @@ interface ProductRow {
   id: string
   name: string
   slug: string
+  sku: string
+  status: string
   category: string
   gender: string
   price: number
@@ -25,6 +27,7 @@ interface ProductRow {
   colors: string[]
   sizes: string[]
   inStock: boolean
+  stockQty: number
   rating: number
   reviewCount: number
   isNew?: boolean
@@ -51,6 +54,8 @@ function mapProduct(raw: Record<string, unknown>): ProductRow {
     id: String(raw.id || ""),
     name: String(raw.name || ""),
     slug: String(raw.slug || ""),
+    sku: String(raw.sku || ""),
+    status: String(raw.status || "active"),
     category: String(raw.category || ""),
     gender: String(raw.gender || "unisex"),
     price: Number(raw.price || 0),
@@ -61,6 +66,7 @@ function mapProduct(raw: Record<string, unknown>): ProductRow {
     colors: Array.isArray(raw.colors) ? raw.colors as string[] : typeof raw.colors === "string" ? JSON.parse(raw.colors as string) : [],
     sizes: Array.isArray(raw.sizes) ? raw.sizes as string[] : typeof raw.sizes === "string" ? JSON.parse(raw.sizes as string) : [],
     inStock: raw.in_stock !== undefined ? Boolean(raw.in_stock) : raw.inStock !== undefined ? Boolean(raw.inStock) : true,
+    stockQty: Number(raw.stock_qty) || 0,
     rating: Number(raw.rating || raw.average_rating || 0),
     reviewCount: Number(raw.review_count || raw.reviewCount || 0),
     isNew: raw.is_new !== undefined ? Boolean(raw.is_new) : raw.isNew !== undefined ? Boolean(raw.isNew) : undefined,
@@ -140,6 +146,28 @@ export default function AdminProductsPage() {
         header: "Category",
         sortable: true,
         className: "hidden lg:table-cell",
+      },
+      {
+        key: "sku",
+        header: "SKU",
+        className: "hidden lg:table-cell",
+        render: (p) => <span className="text-jet/50 text-xs font-poppins">{p.sku || "—"}</span>,
+      },
+      {
+        key: "status",
+        header: "Status",
+        sortable: true,
+        className: "hidden lg:table-cell",
+        render: (p) => (
+          <span className={cn(
+            "inline-block px-2.5 py-0.5 text-[10px] font-poppins uppercase tracking-luxe",
+            p.status === "active" ? "text-emerald bg-emerald/5" :
+            p.status === "draft" ? "text-jet/30 bg-jet/5" :
+            "text-burgundy bg-burgundy/5"
+          )}>
+            {p.status}
+          </span>
+        ),
       },
       {
         key: "gender",

@@ -9,6 +9,7 @@ import { formatPrice, cn } from "@/lib/utils"
 import { fadeUp } from "@/lib/motion"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/providers/cart-provider"
+import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/components/ui/toast"
 import {
   Heart, Share2, ChevronLeft, ChevronRight, Star, Minus, Plus, Truck, Shield, RotateCcw, MessageCircle,
@@ -69,7 +70,9 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [activeTab, setActiveTab] = useState<"details" | "reviews">("details")
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 })
+  const [inWishlist, setInWishlist] = useState(false)
   const { addItem, toggleCart } = useCart()
+  const { isAuthenticated } = useAuth()
   const { toast } = useToast()
 
   const handleAddToCart = () => {
@@ -95,6 +98,42 @@ export default function ProductPage() {
     }
     load()
   }, [params.slug])
+
+  useEffect(() => {
+    if (!product) return
+    if (isAuthenticated) {
+      supabase.from("wishlists").select("id").eq("product_id", product.id).maybeSingle().then(({ data }) => setInWishlist(!!data))
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user?.id) return
+        supabase.from("recently_viewed").upsert(
+          { user_id: user.id, product_id: product.id, viewed_at: new Date().toISOString() },
+          { onConflict: "user_id, product_id" }
+        ).then(({ error }) => {
+          if (error) console.error("Failed to track recently viewed:", error)
+        })
+      })
+    } else {
+      const viewed = JSON.parse(localStorage.getItem("ysi_recently_viewed") || "[]") as string[]
+      const updated = [product.id, ...viewed.filter((id) => id !== product.id)].slice(0, 20)
+      localStorage.setItem("ysi_recently_viewed", JSON.stringify(updated))
+    }
+  }, [product?.id, isAuthenticated])
+
+  const toggleWishlist = async () => {
+    if (!isAuthenticated || !product) {
+      toast({ title: "Sign in required", description: "Please sign in to add items to your wishlist.", variant: "info" })
+      return
+    }
+    if (inWishlist) {
+      await supabase.from("wishlists").delete().eq("product_id", product.id)
+      setInWishlist(false)
+      toast({ title: "Removed from wishlist", variant: "info" })
+    } else {
+      await supabase.from("wishlists").insert({ product_id: product.id })
+      setInWishlist(true)
+      toast({ title: "Added to wishlist", variant: "success" })
+    }
+  }
 
   if (loading) {
     return (
@@ -135,7 +174,7 @@ export default function ProductPage() {
                 {product.isNew && <Badge variant="gold">New Arrival</Badge>}
                 {product.isBestseller && <Badge variant="default">Bestseller</Badge>}
               </div>
-              <button className="absolute top-4 right-4 w-11 h-11 bg-cream/80 backdrop-blur flex items-center justify-center text-jet/60 hover:text-gold transition-colors"><Heart size={17} /></button>
+              <button onClick={toggleWishlist} className={`absolute top-4 right-4 w-11 h-11 bg-cream/80 backdrop-blur flex items-center justify-center transition-colors ${inWishlist ? "text-gold" : "text-jet/60 hover:text-gold"}`}><Heart size={17} fill={inWishlist ? "currentColor" : "none"} /></button>
               {product.images.length > 1 && (
                 <>
                   <button onClick={() => setSelectedImage((prev) => prev === 0 ? product.images.length - 1 : prev - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-cream/80 backdrop-blur flex items-center justify-center text-jet/60 hover:text-jet transition-colors"><ChevronLeft size={18} /></button>
@@ -205,7 +244,7 @@ export default function ProductPage() {
               <div className="text-center"><RotateCcw size={18} className="mx-auto text-gold" /><p className="text-[10px] font-poppins uppercase tracking-luxe text-jet/60 mt-2">Easy Returns</p></div>
             </div>
             <div className="flex items-center gap-6 mt-6 text-jet/40">
-              <button className="flex items-center gap-1.5 text-xs hover:text-jet transition-colors"><Heart size={14} /> Add to Wishlist</button>
+              <button onClick={toggleWishlist} className={`flex items-center gap-1.5 text-xs transition-colors ${inWishlist ? "text-gold" : "text-jet/40 hover:text-jet"}`}><Heart size={14} fill={inWishlist ? "currentColor" : "none"} /> {inWishlist ? "In Wishlist" : "Add to Wishlist"}</button>
               <button className="flex items-center gap-1.5 text-xs hover:text-jet transition-colors"><Share2 size={14} /> Share</button>
             </div>
             {product.tailoringNotes && (

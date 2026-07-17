@@ -14,6 +14,8 @@ import {
   LogOut,
   Menu,
   X,
+  Tags,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 import { useAdminAuth } from "./auth-provider";
@@ -21,9 +23,11 @@ import { useAdminAuth } from "./auth-provider";
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Products", href: "/admin/products", icon: ShoppingBag },
+  { label: "Categories", href: "/admin/categories", icon: Tags },
   { label: "Orders", href: "/admin/orders", icon: ClipboardList },
   { label: "Inventory", href: "/admin/inventory", icon: Package },
   { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Users & Roles", href: "/admin/users", icon: UserCog },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

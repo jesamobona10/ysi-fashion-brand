@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Eye, EyeOff, Loader2, AlertTriangle } from "lucide-react"
+import { Eye, EyeOff, Loader2, AlertTriangle, Chrome } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
@@ -12,12 +12,13 @@ import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, signInWithGoogle } = useAuth()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" })
   const { toast } = useToast()
@@ -34,6 +35,11 @@ export default function LoginPage() {
 
     setFieldErrors(errors)
     return valid
+  }
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    await signInWithGoogle()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,6 +104,17 @@ export default function LoginPage() {
           <Button type="submit" variant="gold" className="w-full h-12" disabled={submitting}>
             {submitting ? <Loader2 size={16} className="animate-spin" /> : "Sign In"}
           </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-jet/10" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-[#f8f5f0] px-3 text-jet/30 font-poppins">or continue with</span></div>
+          </div>
+
+          <button type="button" onClick={handleGoogleSignIn} disabled={googleLoading}
+            className="w-full h-12 flex items-center justify-center gap-3 border border-jet/10 bg-cream text-jet/70 text-sm font-poppins hover:bg-jet hover:text-cream hover:border-jet transition-all duration-300 disabled:opacity-50">
+            {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <Chrome size={16} />}
+            {googleLoading ? "Connecting..." : "Google"}
+          </button>
         </form>
 
         <p className="text-center text-jet/40 text-xs font-poppins mt-6">

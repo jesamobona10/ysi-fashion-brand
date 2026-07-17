@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-import type { SupabaseClient } from "@supabase/supabase-js"
+import type { SupabaseClient, Provider } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -41,6 +41,8 @@ export const supabase = {
       password: string
       options?: { data?: { name?: string } }
     }) => getSupabaseBrowserClient().auth.signUp({ email, password, options }),
+    signInWithOAuth: (params: { provider: Provider; options?: { redirectTo?: string } }) =>
+      getSupabaseBrowserClient().auth.signInWithOAuth(params),
     signOut: () => getSupabaseBrowserClient().auth.signOut(),
     onAuthStateChange: (...args: Parameters<SupabaseClient["auth"]["onAuthStateChange"]>) =>
       getSupabaseBrowserClient().auth.onAuthStateChange(...args),

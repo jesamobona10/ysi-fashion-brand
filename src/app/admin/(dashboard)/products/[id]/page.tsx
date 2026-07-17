@@ -15,7 +15,9 @@ interface ProductForm {
   id?: string
   name: string
   slug: string
+  sku: string
   category: string
+  status: string
   gender: string
   price: number
   originalPrice: number | null
@@ -36,10 +38,14 @@ interface ProductForm {
   deliveryEstimate: string
 }
 
+const STATUS_OPTIONS = ["active", "draft", "archived"] as const
+
 const emptyForm: ProductForm = {
   name: "",
   slug: "",
+  sku: "",
   category: "Bespoke",
+  status: "active",
   gender: "unisex",
   price: 0,
   originalPrice: null,
@@ -81,7 +87,9 @@ function toDBValues(form: ProductForm): Record<string, unknown> {
   return {
     name: form.name,
     slug: toSlug(form.name),
+    sku: form.sku || null,
     category: form.category,
+    status: form.status,
     gender: form.gender,
     price: form.price,
     original_price: form.originalPrice || null,
@@ -108,7 +116,9 @@ function fromDBValues(raw: Record<string, unknown>): ProductForm {
     id: raw.id as string,
     name: (raw.name as string) || "",
     slug: (raw.slug as string) || "",
+    sku: (raw.sku as string) || "",
     category: (raw.category as string) || "Bespoke",
+    status: (raw.status as string) || "active",
     gender: (raw.gender as string) || "unisex",
     price: Number(raw.price) || 0,
     originalPrice: raw.original_price ? Number(raw.original_price) : null,
@@ -289,6 +299,20 @@ export default function AdminProductEditPage() {
               className="w-full h-12 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50"
               placeholder="e.g. The Executive Tailored Blazer" maxLength={200} />
           </Section>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Section label="SKU (Stock Keeping Unit)">
+              <input type="text" value={form.sku} onChange={(e) => update("sku", e.target.value)}
+                className="w-full h-12 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50"
+                placeholder="e.g. YSI-BLZ-001" />
+            </Section>
+            <Section label="Status">
+              <select value={form.status} onChange={(e) => update("status", e.target.value)}
+                className="w-full h-12 px-4 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 capitalize">
+                {STATUS_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
+              </select>
+            </Section>
+          </div>
 
           <Section label="Description">
             <textarea value={form.description} onChange={(e) => update("description", e.target.value.slice(0, 5000))}
