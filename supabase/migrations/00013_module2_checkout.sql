@@ -164,18 +164,22 @@ from public.products
 where stock_qty <= low_stock_threshold
 order by stock_qty asc;
 
+-- Drop old overloaded place_order functions then recreate
+drop function if exists public.place_order(text, uuid, numeric, numeric, numeric, text, jsonb, text, jsonb, timestamptz);
+drop function if exists public.place_order(text, uuid, numeric, numeric, numeric, text, jsonb, jsonb, text, numeric, text, text, jsonb, timestamptz);
+
 -- Updated place_order function with delivery method and gift note
 create or replace function public.place_order(
   p_order_number text,
   p_customer_id uuid,
-  p_subtotal numeric(12,2),
-  p_shipping numeric(12,2),
-  p_total numeric(12,2),
+  p_subtotal numeric,
+  p_shipping numeric,
+  p_total numeric,
   p_payment_method text,
   p_shipping_address jsonb,
   p_billing_address jsonb,
   p_delivery_method text,
-  p_delivery_fee numeric(12,2),
+  p_delivery_fee numeric,
   p_gift_note text,
   p_notes text,
   p_items jsonb,
