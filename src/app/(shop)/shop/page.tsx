@@ -110,6 +110,8 @@ interface Product {
   style?: string
   tailoringNotes?: string
   deliveryEstimate?: string
+  preOrderEnabled?: boolean
+  preOrderReleaseDate?: string
 }
 
 function toProduct(p: Record<string, unknown>): Product {
@@ -136,6 +138,8 @@ function toProduct(p: Record<string, unknown>): Product {
     style: p.style as string,
     tailoringNotes: p.tailoring_notes as string,
     deliveryEstimate: p.delivery_estimate as string,
+    preOrderEnabled: p.pre_order_enabled as boolean,
+    preOrderReleaseDate: p.pre_order_release_date as string | undefined,
   }
 }
 
@@ -419,9 +423,13 @@ function ProductCard({ product, view }: { product: Product; view: "grid" | "list
   const { toast } = useToast()
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    addItem({ id: product.id, name: product.name, price: product.price, image: product.images[0], slug: product.slug })
+    addItem({
+      id: product.id, name: product.name, price: product.price, image: product.images[0], slug: product.slug,
+      isPreOrder: product.preOrderEnabled === true,
+      preOrderReleaseDate: product.preOrderReleaseDate,
+    })
     toggleCart()
-    toast({ title: "Added to cart", description: product.name, variant: "success" })
+    toast({ title: product.preOrderEnabled ? "Pre-order added" : "Added to cart", description: product.name, variant: "success" })
   }
 
   if (view === "list") {
@@ -439,6 +447,9 @@ function ProductCard({ product, view }: { product: Product; view: "grid" | "list
             {product.originalPrice && <span className="text-jet/40 line-through text-sm">{formatPrice(product.originalPrice)}</span>}
             <span className="text-jet/30 text-xs">{product.fabric}</span>
           </div>
+          {product.preOrderEnabled && (
+            <p className="text-[9px] font-poppins text-gold mt-1">Pre-Order &bull; {product.preOrderReleaseDate ? `Ships ${new Date(product.preOrderReleaseDate as string).toLocaleDateString()}` : "Coming Soon"}</p>
+          )}
           <div className="flex items-center gap-2 mt-4">
             <button onClick={handleAdd} className="h-9 px-5 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe hover:bg-gold hover:text-jet transition-all duration-300">Add to Cart</button>
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation() }} className="w-9 h-9 border border-jet/10 flex items-center justify-center text-jet/40 hover:text-gold transition-colors"><Heart size={14} /></button>
@@ -465,12 +476,18 @@ function ProductCard({ product, view }: { product: Product; view: "grid" | "list
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {product.isNew && <Badge variant="gold">New</Badge>}
             {product.isBestseller && <Badge variant="default">Bestseller</Badge>}
+            {product.preOrderEnabled && <Badge variant="gold">Pre-Order</Badge>}
           </div>
         </div>
         <div className="p-3 lg:p-4">
           <p className="text-jet/40 text-[9px] font-poppins uppercase tracking-luxe">{product.category}</p>
           <h3 className="font-poppins text-sm text-jet font-medium mt-0.5 leading-tight group-hover:text-gold transition-colors">{product.name}</h3>
           <span className="font-poppins text-sm font-medium text-jet mt-1 block">{formatPrice(product.price)}</span>
+          {product.preOrderEnabled && (
+            <span className="text-[9px] font-poppins text-gold block mt-0.5">
+              {product.preOrderReleaseDate ? `Pre-Order · Ships ${new Date(product.preOrderReleaseDate as string).toLocaleDateString()}` : "Coming Soon"}
+            </span>
+          )}
           <div className="flex items-center gap-1 mt-1.5">
             <div className="flex">{Array.from({ length: 5 }).map((_, i) => (
               <svg key={i} className={`w-2.5 h-2.5 ${i < Math.floor(product.rating) ? "text-gold" : "text-jet/10"}`} fill="currentColor" viewBox="0 0 20 20">

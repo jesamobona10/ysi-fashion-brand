@@ -57,8 +57,11 @@ export function CartDrawer() {
                 <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                   {state.items.map((item) => (
                     <div key={item.id} className="flex gap-4 py-4 border-b border-jet/5">
-                      <Link href={`/shop/${item.slug}`} onClick={closeCart} className="shrink-0 w-20 aspect-[3/4] overflow-hidden bg-ivory">
+                      <Link href={`/shop/${item.slug}`} onClick={closeCart} className="shrink-0 w-20 aspect-[3/4] overflow-hidden bg-ivory relative">
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        {item.isPreOrder && (
+                          <span className="absolute top-1 left-1 bg-gold text-jet text-[7px] font-poppins uppercase tracking-luxe px-1.5 py-0.5">Pre-Order</span>
+                        )}
                       </Link>
                       <div className="flex-1 min-w-0">
                         <Link href={`/shop/${item.slug}`} onClick={closeCart} className="font-poppins text-xs text-jet font-medium hover:text-gold transition-colors line-clamp-2">
@@ -69,6 +72,9 @@ export function CartDrawer() {
                           {item.size && item.color && <span> &bull; </span>}
                           {item.color && <span>{item.color}</span>}
                         </p>
+                        {item.isPreOrder && item.preOrderReleaseDate && (
+                          <p className="text-[9px] font-poppins text-gold mt-0.5">Available {new Date(item.preOrderReleaseDate).toLocaleDateString()}</p>
+                        )}
                         <p className="font-poppins text-sm font-medium text-jet mt-1">{formatPrice(item.price)}</p>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex border border-jet/10">

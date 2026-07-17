@@ -22,6 +22,7 @@ interface Product {
   fabric: string; sizes: string[]; colors: string[]; inStock: boolean
   rating: number; reviewCount: number; isNew?: boolean; isBestseller?: boolean
   tailoringNotes?: string; deliveryEstimate?: string
+  preOrderEnabled?: boolean; preOrderReleaseDate?: string; preOrderDeposit?: number
 }
 
 async function fetchProductBySlug(slug: string): Promise<Record<string, unknown> | null> {
@@ -57,6 +58,8 @@ function toProduct(p: Record<string, unknown>): Product {
     sizes: (p.sizes as string[]) || [], colors: (p.colors as string[]) || [], inStock: p.in_stock as boolean,
     rating: Number(p.rating) || 0, reviewCount: Number(p.review_count) || 0, isNew: p.is_new as boolean,
     isBestseller: p.is_bestseller as boolean, tailoringNotes: p.tailoring_notes as string, deliveryEstimate: p.delivery_estimate as string,
+    preOrderEnabled: p.pre_order_enabled as boolean, preOrderReleaseDate: p.pre_order_release_date as string | undefined,
+    preOrderDeposit: p.pre_order_deposit ? Number(p.pre_order_deposit) : undefined,
   }
 }
 
@@ -84,9 +87,11 @@ export default function ProductPage() {
     addItem({
       id: product.id, name: product.name, price: product.price, image: product.images[0],
       quantity, size: selectedSize || undefined, color: selectedColor || undefined, slug: product.slug,
+      isPreOrder: product.preOrderEnabled === true,
+      preOrderReleaseDate: product.preOrderReleaseDate,
     })
     toggleCart()
-    toast({ title: "Added to cart", description: product.name, variant: "success" })
+    toast({ title: product.preOrderEnabled ? "Pre-order added" : "Added to cart", description: product.name, variant: "success" })
   }
 
   useEffect(() => {
@@ -204,6 +209,7 @@ export default function ProductPage() {
               <div className="absolute top-4 left-4 flex flex-col gap-2">
                 {product.isNew && <Badge variant="gold">New Arrival</Badge>}
                 {product.isBestseller && <Badge variant="default">Bestseller</Badge>}
+                {product.preOrderEnabled && <Badge variant="gold">Pre-Order</Badge>}
               </div>
               <button onClick={toggleWishlist} className={`absolute top-4 right-4 w-11 h-11 bg-cream/80 backdrop-blur flex items-center justify-center transition-colors ${inWishlist ? "text-gold" : "text-jet/60 hover:text-gold"}`}><Heart size={17} fill={inWishlist ? "currentColor" : "none"} /></button>
               {product.images.length > 1 && (
@@ -229,6 +235,18 @@ export default function ProductPage() {
               <span className="font-poppins text-2xl font-medium text-jet">{formatPrice(product.price)}</span>
               {product.originalPrice && <><span className="font-poppins text-lg text-jet/30 line-through">{formatPrice(product.originalPrice)}</span><Badge variant="burgundy">Save {formatPrice(product.originalPrice - product.price)}</Badge></>}
             </div>
+            {product.preOrderEnabled && (
+              <div className="mt-3 space-y-1">
+                <p className="text-[10px] font-poppins text-gold uppercase tracking-luxe font-medium">
+                  {product.preOrderReleaseDate ? `Available ${new Date(product.preOrderReleaseDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : "Coming Soon"}
+                </p>
+                {product.preOrderDeposit ? (
+                  <p className="text-[10px] font-poppins text-jet/50">Deposit of {formatPrice(product.preOrderDeposit)} required to secure your pre-order</p>
+                ) : (
+                  <p className="text-[10px] font-poppins text-jet/50">Full payment due at checkout. Your item will ship on the release date.</p>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-3">
               <div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => (<Star key={i} size={15} className={i < Math.floor(product.rating) ? "text-gold fill-gold" : "text-jet/10"} />))}</div>
               <span className="text-jet/50 text-sm">{product.rating} ({product.reviewCount} reviews)</span>
@@ -262,7 +280,7 @@ export default function ProductPage() {
                   <span className="w-12 h-11 flex items-center justify-center text-sm font-poppins border-x border-jet/10">{quantity}</span>
                   <button onClick={() => setQuantity(quantity + 1)} className="w-11 h-11 flex items-center justify-center text-jet/50 hover:text-jet transition-colors"><Plus size={14} /></button>
                 </div>
-                <span className="text-jet/40 text-sm font-poppins">{product.inStock ? "In Stock" : "Made to Order"}</span>
+                <span className="text-jet/40 text-sm font-poppins">{product.preOrderEnabled ? "Pre-Order Now" : product.inStock ? "In Stock" : "Made to Order"}</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-8">

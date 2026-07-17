@@ -36,6 +36,9 @@ interface ProductForm {
   style: string
   tailoringNotes: string
   deliveryEstimate: string
+  preOrderEnabled: boolean
+  preOrderReleaseDate: string
+  preOrderDeposit: number | null
 }
 
 const STATUS_OPTIONS = ["active", "draft", "archived"] as const
@@ -64,6 +67,9 @@ const emptyForm: ProductForm = {
   style: "",
   tailoringNotes: "",
   deliveryEstimate: "",
+  preOrderEnabled: false,
+  preOrderReleaseDate: "",
+  preOrderDeposit: null,
 }
 
 const categoryOptions = [...ALLOWED_CATEGORIES]
@@ -108,6 +114,9 @@ function toDBValues(form: ProductForm): Record<string, unknown> {
     style: form.style || null,
     tailoring_notes: form.tailoringNotes || null,
     delivery_estimate: form.deliveryEstimate || null,
+    pre_order_enabled: form.preOrderEnabled,
+    pre_order_release_date: form.preOrderReleaseDate || null,
+    pre_order_deposit: form.preOrderDeposit || null,
   }
 }
 
@@ -137,6 +146,9 @@ function fromDBValues(raw: Record<string, unknown>): ProductForm {
     style: (raw.style as string) || "",
     tailoringNotes: (raw.tailoring_notes as string) || "",
     deliveryEstimate: (raw.delivery_estimate as string) || "",
+    preOrderEnabled: Boolean(raw.pre_order_enabled),
+    preOrderReleaseDate: (raw.pre_order_release_date as string) || "",
+    preOrderDeposit: raw.pre_order_deposit ? Number(raw.pre_order_deposit) : null,
   }
 }
 
@@ -441,7 +453,29 @@ export default function AdminProductEditPage() {
                 {form.isBestseller ? "Bestseller ✓" : "Bestseller"}
               </button>
             </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => update("preOrderEnabled", !form.preOrderEnabled)}
+                className={cn("px-4 py-2 text-[10px] font-poppins uppercase tracking-luxe border transition-all",
+                  form.preOrderEnabled ? "bg-gold/20 text-gold border-gold/30" : "border-jet/10 text-jet/50")}>
+                {form.preOrderEnabled ? "Pre-Order ✓" : "Pre-Order"}
+              </button>
+            </div>
           </div>
+
+          {form.preOrderEnabled && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-2">Release Date</label>
+                <input type="date" value={form.preOrderReleaseDate} onChange={(e) => update("preOrderReleaseDate", e.target.value)}
+                  className="w-full h-10 px-3 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-2">Deposit Amount (optional)</label>
+                <input type="number" value={form.preOrderDeposit ?? ""} onChange={(e) => update("preOrderDeposit", e.target.value ? Number(e.target.value) : null)}
+                  className="w-full h-10 px-3 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50" placeholder="Leave blank for full payment" min={0} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

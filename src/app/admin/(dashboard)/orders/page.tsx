@@ -27,6 +27,8 @@ interface OrderRow {
   status: string
   paymentStatus: string
   createdAt: string
+  orderType: string
+  preOrderReleaseDate: string | null
 }
 
 async function fetchOrders(): Promise<Record<string, unknown>[]> {
@@ -55,6 +57,8 @@ function mapOrder(raw: Record<string, unknown>): OrderRow {
     status: String(raw.status || "pending"),
     paymentStatus: String(raw.payment_status || "pending"),
     createdAt: String(raw.created_at || new Date().toISOString()),
+    orderType: String(raw.order_type || "standard"),
+    preOrderReleaseDate: raw.pre_order_release_date ? String(raw.pre_order_release_date) : null,
   }
 }
 
@@ -63,6 +67,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
 
   useEffect(() => {
     fetchOrders().then((data) => {
@@ -72,8 +77,12 @@ export default function AdminOrdersPage() {
   }, [])
 
   const filtered = useMemo(
-    () => statusFilter === "all" ? orders : orders.filter((o) => o.status === statusFilter),
-    [orders, statusFilter]
+    () => {
+      let result = statusFilter === "all" ? orders : orders.filter((o) => o.status === statusFilter)
+      if (typeFilter !== "all") result = result.filter((o) => o.orderType === typeFilter)
+      return result
+    },
+    [orders, statusFilter, typeFilter]
   )
 
   const statuses = ["all", "pending", "confirmed", "tailoring", "quality-check", "shipped", "delivered", "cancelled"]
@@ -84,7 +93,14 @@ export default function AdminOrdersPage() {
         key: "orderNumber",
         header: "Order",
         sortable: true,
-        render: (o) => (<span className="font-medium text-jet">{o.orderNumber}</span>),
+        render: (o) => (
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-jet">{o.orderNumber}</span>
+            {o.orderType === "pre_order" && (
+              <span className="text-[8px] font-poppins uppercase tracking-luxe bg-gold/10 text-gold border border-gold/20 px-1.5 py-0.5">Pre</span>
+            )}
+          </div>
+        ),
       },
       {
         key: "customerName",
@@ -113,6 +129,14 @@ export default function AdminOrdersPage() {
             {o.status.replace("-", " ")}
           </span>
         ),
+      },
+      {
+        key: "preOrderReleaseDate",
+        header: "Release",
+        className: "hidden lg:table-cell",
+        render: (o) => o.orderType === "pre_order" && o.preOrderReleaseDate ? (
+          <span className="text-[10px] font-poppins text-jet/50">{new Date(o.preOrderReleaseDate).toLocaleDateString()}</span>
+        ) : null,
       },
       {
         key: "paymentStatus",
@@ -176,6 +200,17 @@ export default function AdminOrdersPage() {
             {s !== "all" && (
               <span className="ml-1.5 text-[9px] opacity-60">({orders.filter((o) => o.status === s).length})</span>
             )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {["all", "standard", "pre_order"].map((t) => (
+          <button key={t} onClick={() => setTypeFilter(t)}
+            className={cn("px-3 py-1.5 text-[9px] font-poppins uppercase tracking-luxe border transition-all",
+              typeFilter === t ? "bg-gold/20 text-gold border-gold/30" : "border-jet/10 text-jet/50 hover:border-jet/30")}>
+            {t === "all" ? "All Types" : t === "pre_order" ? "Pre-Orders" : "Standard"}
+            {t !== "all" && <span className="ml-1 opacity-60">({orders.filter((o) => o.orderType === t).length})</span>}
           </button>
         ))}
       </div>

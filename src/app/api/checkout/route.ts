@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   const productIds = body.items.map((item) => normalizeItemId(item.id))
   const { data: products, error: productsError } = await serviceClient
     .from("products")
-    .select("id, name, slug, price, in_stock, stock_qty, low_stock_threshold")
+    .select("id, name, slug, price, in_stock, stock_qty, low_stock_threshold, pre_order_enabled, pre_order_release_date")
     .in("id", productIds)
 
   if (productsError) {
@@ -111,9 +111,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 })
   }
 
+  const hasPreOrder = body.items.some((item) => {
+    const p = productMap!.get(normalizeItemId(item.id))
+    return p && (p as Record<string, unknown>).pre_order_enabled === true
+  })
+
   for (const item of body.items) {
     const product = productMap.get(normalizeItemId(item.id))
     if (!product) continue
+    const isPreOrder = (product as Record<string, unknown>).pre_order_enabled === true
+    if (isPreOrder) continue
     const available = Number(product.stock_qty)
     if (available < item.quantity) {
       return NextResponse.json({
@@ -248,6 +255,17 @@ export async function POST(request: Request) {
 
   const notes = sanitizeString(body.notes || "", 2000)
 
+  const earliestPreOrderDate = hasPreOrder
+    ? body.items.reduce((earliest: string | null, item) => {
+        const p = productMap!.get(normalizeItemId(item.id)) as Record<string, unknown> | undefined
+        if (p?.pre_order_enabled && p?.pre_order_release_date) {
+          const d = String(p.pre_order_release_date)
+          return !earliest || d < earliest ? d : earliest
+        }
+        return earliest
+      }, null)
+    : null
+
   const { data: orderResult, error: orderRpcError } = await serviceClient.rpc("place_order", {
     p_order_number: orderNumber,
     p_customer_id: customerId,
@@ -288,10 +306,19 @@ export async function POST(request: Request) {
 
   const orderId = result.order_id as string
 
+  if (hasPreOrder) {
+    await serviceClient.from("orders").update({
+      order_type: "pre_order",
+      pre_order_release_date: earliestPreOrderDate,
+    }).eq("id", orderId)
+  }
+
   if (productMap) {
     for (const item of normalizedItems) {
       const product = productMap.get(item.product_id)
       if (!product) continue
+      const isPreOrder = (product as Record<string, unknown>).pre_order_enabled === true
+      if (isPreOrder) continue
       const currentStock = Number(product.stock_qty)
       const { error: stockError } = await serviceClient
         .from("products")
