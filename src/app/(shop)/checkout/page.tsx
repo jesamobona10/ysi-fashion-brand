@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { ArrowLeft, Minus, Plus, Trash2, Loader2 } from "lucide-react"
+import { ArrowLeft, Minus, Plus, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { useCart } from "@/components/providers/cart-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { formatPrice } from "@/lib/utils"
 import { isValidEmail, isValidPhone, ALLOWED_COUNTRIES, sanitizeString } from "@/lib/validation"
+import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
 
 const paymentMethods = [
@@ -102,8 +103,9 @@ export default function CheckoutPage() {
       toast({ title: "Order placed!", description: `Your order ${result.orderNumber} has been placed successfully.`, variant: "success" })
       router.push(`/checkout/confirmation?order=${result.orderNumber}`)
     } catch (err) {
-      toast({ title: "Order failed", description: String(err), variant: "error" })
-      setError(String(err))
+      const friendly = friendlyError(err)
+      toast({ title: "Unable to complete order", description: friendly, variant: "error" })
+      setError(friendly)
     } finally {
       setSubmitting(false)
     }
@@ -131,7 +133,10 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {error && <div className="mb-6 p-4 bg-burgundy/10 border border-burgundy/20 text-burgundy text-sm font-poppins">{error}</div>}
+        {error && <div className="mb-6 p-4 bg-amber/5 border border-amber/20 rounded-sm flex items-start gap-3">
+          <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={12} /></span>
+          <p className="text-jet/70 text-sm font-poppins leading-relaxed">{error}</p>
+        </div>}
         {process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location.search.includes("simulation=true") && (
           <div className="mb-6 p-3 bg-gold/10 border border-gold/20 text-gold text-xs font-poppins text-center">
             Simulation Mode — No real charge will be made

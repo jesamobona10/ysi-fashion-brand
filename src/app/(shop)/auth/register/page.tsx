@@ -4,10 +4,11 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
+import { Eye, EyeOff, Loader2, Mail, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
+import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
 
 export default function RegisterPage() {
@@ -68,8 +69,9 @@ export default function RegisterPage() {
         setConfirmEmail(true)
       }
     } else {
-      toast({ title: "Registration failed", description: result.error || "Please try again.", variant: "error" })
-      setError(result.error || "Registration failed")
+      const friendly = friendlyError(result.error || "We weren't able to create your account")
+      toast({ title: "Unable to create account", description: friendly, variant: "error" })
+      setError(friendly)
       if (result.error?.toLowerCase().includes("rate limit") || result.error?.toLowerCase().includes("too many")) {
         setCooldown(60)
       }
@@ -141,7 +143,10 @@ export default function RegisterPage() {
                 {fieldErrors.password && <p className="text-burgundy text-[10px] font-poppins mt-1">{fieldErrors.password}</p>}
               </div>
 
-              {error && <p className="text-burgundy text-xs font-poppins bg-burgundy/10 px-3 py-2">{error}</p>}
+              {error && <div className="flex items-start gap-2 bg-amber/5 border border-amber/20 px-3 py-2.5 rounded-sm">
+                <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={9} /></span>
+                <p className="text-jet/70 text-xs font-poppins">{error}</p>
+              </div>}
 
               <Button type="submit" variant="gold" className="w-full h-12" disabled={submitting || cooldown > 0}>
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : cooldown > 0 ? `Wait ${cooldown}s` : "Create Account"}

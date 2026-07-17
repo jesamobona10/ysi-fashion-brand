@@ -4,10 +4,11 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { isValidEmail } from "@/lib/validation"
+import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
 
 export default function LoginPage() {
@@ -46,8 +47,9 @@ export default function LoginPage() {
       toast({ title: "Welcome back!", variant: "success" })
       router.push("/account")
     } else {
-      toast({ title: "Login failed", description: result.error || "Invalid email or password", variant: "error" })
-      setError(result.error || "Invalid email or password")
+      const friendly = friendlyError(result.error || "Invalid email or password")
+      toast({ title: "Unable to sign in", description: friendly, variant: "error" })
+      setError(friendly)
     }
   }
 
@@ -88,7 +90,10 @@ export default function LoginPage() {
             {fieldErrors.password && <p className="text-burgundy text-[10px] font-poppins mt-1">{fieldErrors.password}</p>}
           </div>
 
-          {error && <p className="text-burgundy text-xs font-poppins bg-burgundy/10 px-3 py-2">{error}</p>}
+          {error && <div className="flex items-start gap-2 bg-amber/5 border border-amber/20 px-3 py-2.5 rounded-sm">
+            <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-amber/10 flex items-center justify-center text-amber"><AlertTriangle size={9} /></span>
+            <p className="text-jet/70 text-xs font-poppins">{error}</p>
+          </div>}
 
           <Button type="submit" variant="gold" className="w-full h-12" disabled={submitting}>
             {submitting ? <Loader2 size={16} className="animate-spin" /> : "Sign In"}
