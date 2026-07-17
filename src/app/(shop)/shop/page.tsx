@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, Suspense } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import { formatPrice, cn } from "@/lib/utils"
 import { staggerContainer, fadeUp } from "@/lib/motion"
@@ -138,13 +139,17 @@ function toProduct(p: Record<string, unknown>): Product {
   }
 }
 
-export default function ShopPage() {
+function ShopPageInner() {
+  const searchParams = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [totalProducts, setTotalProducts] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [filters, setFilters] = useState<FilterState>({
-    gender: [], category: [], fabric: [], sizes: [], season: [], occasion: [], style: [], price: [], search: "",
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const initialSearch = searchParams.get("search") || ""
+    return {
+      gender: [], category: [], fabric: [], sizes: [], season: [], occasion: [], style: [], price: [], search: initialSearch,
+    }
   })
   const [sort, setSort] = useState("newest")
   const [view, setView] = useState<"grid" | "list">("grid")
@@ -240,6 +245,16 @@ export default function ShopPage() {
       </div>
     )
   }
+
+  useEffect(() => {
+    if (filters.search.trim().length >= 2) {
+      fetch("/api/search/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: filters.search }),
+      }).catch(() => {})
+    }
+  }, [filters.search])
 
   return (
     <div className="pt-[72px] lg:pt-20">
@@ -384,6 +399,18 @@ export default function ShopPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={
+      <div className="pt-[72px] lg:pt-20 min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ShopPageInner />
+    </Suspense>
   )
 }
 

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/providers/cart-provider";
 import { useAuth } from "@/components/auth/auth-provider";
+import { SearchOverlay } from "@/components/search/search-overlay";
 
 const navLinks = [
   { label: "Men", href: "/shop?gender=men" },
@@ -18,6 +19,7 @@ const navLinks = [
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { scrollY } = useScroll();
   const { totalItems, toggleCart } = useCart();
@@ -70,6 +72,7 @@ export function Navbar() {
 
             <div className="flex items-center gap-4 lg:gap-6">
               <button
+                onClick={() => setSearchOpen(true)}
                 className="hidden lg:flex text-jet/70 hover:text-jet transition-colors"
                 aria-label="Search"
               >
@@ -151,6 +154,7 @@ export function Navbar() {
           </div>
         </motion.div>
       )}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
