@@ -22,6 +22,7 @@ import {
   Newspaper,
   Home,
   Zap,
+  CalendarCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { useAdminAuth } from "./auth-provider";
@@ -31,6 +32,7 @@ const navItems = [
   { label: "Products", href: "/admin/products", icon: ShoppingBag },
   { label: "Categories", href: "/admin/categories", icon: Tags },
   { label: "Orders", href: "/admin/orders", icon: ClipboardList },
+  { label: "Pre-Orders", href: "/admin/pre-orders", icon: CalendarCheck },
   { label: "Journal", href: "/admin/journal", icon: Newspaper },
   { label: "Homepage", href: "/admin/homepage", icon: Home },
   { label: "Webhooks", href: "/admin/webhooks", icon: Zap },

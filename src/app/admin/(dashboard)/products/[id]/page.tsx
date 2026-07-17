@@ -10,6 +10,7 @@ import { ArrowLeft, Save, Upload, X, Loader2 } from "lucide-react"
 import { toSlug } from "@/lib/slug"
 import { ALLOWED_CATEGORIES, ALLOWED_GENDERS, ALLOWED_SIZES, ALLOWED_COLORS, ALLOWED_SEASONS, ALLOWED_OCCASIONS } from "@/lib/validation"
 import { useToast } from "@/components/ui/toast"
+import { FulfillPreOrders } from "@/components/admin/FulfillPreOrders"
 
 interface ProductForm {
   id?: string
@@ -474,6 +475,13 @@ export default function AdminProductEditPage() {
                 <input type="number" value={form.preOrderDeposit ?? ""} onChange={(e) => update("preOrderDeposit", e.target.value ? Number(e.target.value) : null)}
                   className="w-full h-10 px-3 bg-cream border border-jet/10 text-jet text-sm font-poppins focus:outline-none focus:border-gold/50" placeholder="Leave blank for full payment" min={0} />
               </div>
+            </div>
+          )}
+
+          {form.preOrderEnabled && (
+            <div className="mt-6 pt-6 border-t border-jet/5">
+              <p className="text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-3">Fulfillment</p>
+              <FulfillPreOrders productId={form.id!} productName={form.name} />
             </div>
           )}
         </div>

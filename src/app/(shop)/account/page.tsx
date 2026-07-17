@@ -21,6 +21,7 @@ interface OrderItem {
 interface Order {
   id: string; order_number: string; status: string; total: number
   created_at: string; items: OrderItem[]; payment_status: string
+  order_type?: string; pre_order_release_date?: string
 }
 
 const statusLabels: Record<string, string> = {
@@ -104,6 +105,8 @@ export default function AccountPage() {
               color: i.color as string | undefined,
             })),
             payment_status: (o.payment_status || "pending") as string,
+            order_type: (o.order_type as string) || "standard",
+            pre_order_release_date: (o.pre_order_release_date as string) || undefined,
           }
         }))
         setOrdersLoading(false)
@@ -266,19 +269,28 @@ export default function AccountPage() {
                   {orders.map((order) => (
                     <div key={order.id} className="border border-jet/5 bg-cream p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <div>
+                        <div className="flex items-center gap-2">
+                          {order.order_type === "pre_order" && (
+                            <span className="px-1.5 py-0.5 bg-gold/10 text-gold text-[9px] font-poppins uppercase tracking-luxe">Pre</span>
+                          )}
                           <p className="font-poppins text-sm font-medium text-jet">{order.order_number}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Clock size={10} className="text-jet/30" />
-                            <span className="text-[10px] font-poppins text-jet/40">{new Date(order.created_at).toLocaleDateString()}</span>
-                          </div>
                         </div>
                         <div className="text-right">
                           <p className="font-poppins text-sm font-medium text-jet">{formatPrice(order.total)}</p>
                           <span className={`inline-block mt-1 px-2 py-0.5 text-[9px] font-poppins uppercase tracking-luxe ${order.status === "delivered" ? "bg-emerald/10 text-emerald" : order.status === "cancelled" ? "bg-burgundy/10 text-burgundy" : "bg-gold/10 text-gold"}`}>{statusLabels[order.status] || order.status}</span>
                         </div>
                       </div>
-                      <div className="border-t border-jet/5 pt-3 space-y-1">
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock size={10} className="text-jet/30" />
+                        <span className="text-[10px] font-poppins text-jet/40">{new Date(order.created_at).toLocaleDateString()}</span>
+                        {order.order_type === "pre_order" && order.pre_order_release_date && (
+                          <span className="text-[9px] font-poppins text-gold/70">
+                            · Releases {new Date(order.pre_order_release_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {new Date(order.pre_order_release_date) > new Date() && ` (${Math.ceil((new Date(order.pre_order_release_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}d)`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="border-t border-jet/5 pt-3 mt-2 space-y-1">
                         {order.items?.map((item, i) => (
                           <div key={i} className="flex justify-between text-xs font-poppins">
                             <span className="text-jet/70">{item.name} {item.size && `(${item.size})`} x{item.quantity}</span>
