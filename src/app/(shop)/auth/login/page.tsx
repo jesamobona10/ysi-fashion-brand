@@ -47,12 +47,35 @@ export default function LoginPage() {
     setError("")
     if (!validate()) return
     setSubmitting(true)
+    try {
+      const lockRes = await fetch("/api/auth/lockout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const lockData = await lockRes.json()
+      if (lockData.locked) {
+        setError(`Account temporarily locked. Try again in ${lockData.remainingMinutes || 15} minutes.`)
+        setSubmitting(false)
+        return
+      }
+    } catch {}
     const result = await login(email, password)
     setSubmitting(false)
     if (result.ok) {
+      fetch("/api/auth/lockout", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, success: true }),
+      }).catch(() => {})
       toast({ title: "Welcome back!", variant: "success" })
       router.push("/account")
     } else {
+      fetch("/api/auth/lockout", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, success: false }),
+      }).catch(() => {})
       const friendly = friendlyError(result.error || "Invalid email or password")
       toast({ title: "Unable to sign in", description: friendly, variant: "error" })
       setError(friendly)
