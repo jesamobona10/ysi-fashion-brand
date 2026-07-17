@@ -28,7 +28,7 @@ export default function AdminUsersPage() {
     setError("")
     try {
       const { data: admins, error: adminErr } = await supabase
-        .from("admins")
+        .from("admin_users")
         .select("id, email, role, created_at, last_sign_in_at, customers:customers(name, status)")
         .order("created_at", { ascending: false })
       if (adminErr) throw adminErr
@@ -47,7 +47,7 @@ export default function AdminUsersPage() {
     if (!confirm(`Change ${userEmail} from "${currentRole}" to "${newRole}"?`)) return
     try {
       const { error: updateErr } = await supabase
-        .from("admins")
+        .from("admin_users")
         .update({ role: newRole })
         .eq("id", userId)
       if (updateErr) throw updateErr

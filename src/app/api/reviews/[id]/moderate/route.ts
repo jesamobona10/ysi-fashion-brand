@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const serviceClient = createServiceSupabaseClient()
 
     const { data: admin } = await serviceClient
-      .from("admins")
+      .from("admin_users")
       .select("id, role")
       .eq("auth_user_id", session.user.id)
       .maybeSingle()

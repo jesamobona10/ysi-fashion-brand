@@ -58,7 +58,7 @@ begin
       'Low Stock Alert',
       format('Product "%s" (SKU: %s) has only %s units remaining.', new.name, coalesce(new.sku, 'N/A'), new.stock_qty),
       jsonb_build_object('product_id', new.id, 'product_name', new.name, 'stock_qty', new.stock_qty)
-    from public.admins a;
+    from public.admin_users a;
   end if;
   return new;
 end;

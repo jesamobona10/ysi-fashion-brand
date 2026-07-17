@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     if (!customer) {
       const { data: adminCheck } = await serviceClient
-        .from("admins")
+        .from("admin_users")
         .select("id")
         .eq("auth_user_id", session.user.id)
         .maybeSingle()

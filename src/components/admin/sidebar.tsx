@@ -18,6 +18,7 @@ import {
   UserCog,
   MessageSquare,
   BarChart3,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 import { useAdminAuth } from "./auth-provider";
@@ -32,6 +33,7 @@ const navItems = [
   { label: "Inventory", href: "/admin/inventory", icon: Package },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Users & Roles", href: "/admin/users", icon: UserCog },
+  { label: "Permissions", href: "/admin/permissions", icon: Shield },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
