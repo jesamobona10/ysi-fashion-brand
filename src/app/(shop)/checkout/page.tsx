@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/utils"
 import { isValidEmail, isValidPhone, ALLOWED_COUNTRIES, sanitizeString } from "@/lib/validation"
 import { friendlyError } from "@/lib/friendly-error"
 import { useToast } from "@/components/ui/toast"
+import { Captcha } from "@/components/ui/captcha"
 
 const paymentMethods = [
   { value: "cash-on-delivery", label: "Cash on Delivery", desc: "Pay when your order arrives" },
@@ -50,6 +51,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [captchaToken, setCaptchaToken] = useState("")
   const { toast } = useToast()
 
   const deliveryFee = deliveryMethods.find((d) => d.value === deliveryMethod)?.price || 0
@@ -86,6 +88,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!validate()) return
+    if (!captchaToken) { setError("Please complete the security check"); return }
     setSubmitting(true)
     setError("")
 
@@ -329,6 +332,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm font-poppins"><span className="text-jet/50">Subtotal</span><span className="text-jet font-medium">{formatPrice(totalPrice)}</span></div>
                 <div className="flex justify-between text-sm font-poppins"><span className="text-jet/50">Delivery</span><span className={`font-medium ${deliveryFee === 0 ? "text-emerald" : "text-jet"}`}>{deliveryFee === 0 ? "Free" : formatPrice(deliveryFee)}</span></div>
                 <div className="gold-divider" />
+                <Captcha onVerify={setCaptchaToken} className="mb-4" />
                 <div className="flex justify-between text-base font-poppins"><span className="text-jet font-medium">Total</span><span className="text-jet font-bold">{formatPrice(finalTotal)}</span></div>
                 <p className="text-[9px] font-poppins text-jet/30 mt-1 text-center">Cash or Transfer on Delivery</p>
                 <button onClick={handlePlaceOrder} disabled={submitting}

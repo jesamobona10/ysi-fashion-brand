@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { motion, AnimatePresence } from "framer-motion"
 import { X, CheckCircle, AlertTriangle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { announce } from "@/components/ui/accessible-app"
 
 type ToastVariant = "success" | "error" | "info"
 
@@ -43,6 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (t: Omit<Toast, "id">) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
       setToasts((prev) => [...prev, { ...t, id }])
+      announce(`${t.title}${t.description ? `: ${t.description}` : ""}`, t.variant === "error" ? "assertive" : "polite")
       setTimeout(() => removeToast(id), 4000)
     },
     [removeToast]

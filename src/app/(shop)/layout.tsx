@@ -42,7 +42,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <CartDrawer />
           <PageTransition>
-            <main className="flex-1">{children}</main>
+            <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
           </PageTransition>
           <Footer />
           <MobileNav />
