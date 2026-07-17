@@ -14,6 +14,7 @@ const navLinks = [
   { label: "Women", href: "/shop?gender=women" },
   { label: "Bespoke", href: "/bespoke" },
   { label: "Collections", href: "/shop" },
+  { label: "Style Editor", href: "/stylist" },
   { label: "Journal", href: "/journal" },
 ];
 
