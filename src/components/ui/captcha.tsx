@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { RefreshCw, CheckCircle } from "lucide-react"
+import { RefreshCw, CheckCircle, Loader2 } from "lucide-react"
 
 interface CaptchaProps {
   onVerify: (token: string) => void
@@ -57,8 +57,7 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
     }
   }, [verified, challenge.answer, onVerify])
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  function handleVerify() {
     const delay = 200 + Math.random() * 600
     setLoading(true)
     timerRef.current = setTimeout(() => {
@@ -101,7 +100,7 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
       <label className="block text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-2" id="captcha-label">
         Security Check: What is {challenge.a} {challenge.op} {challenge.b}?
       </label>
-      <form onSubmit={handleSubmit} className="flex gap-2" aria-labelledby="captcha-label">
+      <div className="flex gap-2" aria-labelledby="captcha-label">
         <input
           type="number"
           value={input}
@@ -109,18 +108,17 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
           onKeyDown={handleKeyDown}
           className={`w-full h-10 px-3 bg-cream border text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 ${error ? "border-burgundy" : "border-jet/10"}`}
           placeholder="Answer"
-          required
           aria-label="Enter the correct answer"
           aria-describedby={error ? "captcha-error" : undefined}
           aria-invalid={error || undefined}
           disabled={loading}
           autoComplete="off"
         />
-        <button type="submit"
+        <button type="button" onClick={handleVerify}
           className="h-10 px-4 bg-jet text-cream text-[10px] font-poppins uppercase tracking-luxe hover:bg-gold hover:text-jet transition-all shrink-0 disabled:opacity-40"
           disabled={loading || !input.trim()}
           aria-label="Verify security answer">
-          {loading ? "..." : "Verify"}
+          {loading ? <Loader2 size={12} className="animate-spin" /> : "Verify"}
         </button>
         <button type="button" onClick={newChallenge}
           className="h-10 w-10 flex items-center justify-center border border-jet/10 text-jet/30 hover:text-jet transition-colors shrink-0 disabled:opacity-40"
@@ -128,7 +126,7 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
           aria-label="Generate new security challenge">
           <RefreshCw size={14} aria-hidden="true" />
         </button>
-      </form>
+      </div>
       {error && (
         <p id="captcha-error" className="text-burgundy text-[10px] font-poppins mt-1" role="alert">
           Incorrect answer.{attempts >= 2 ? " New challenge generated." : " Try again."}
