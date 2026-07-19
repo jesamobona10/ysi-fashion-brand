@@ -11,7 +11,6 @@ import {
   ALLOWED_PAYMENT_METHODS,
 } from "@/lib/validation"
 import { checkRateLimit, rateLimitKey } from "@/lib/server/rate-limit"
-import { sendOrderConfirmation } from "@/lib/email"
 
 export const runtime = "nodejs"
 
@@ -331,9 +330,6 @@ export async function POST(request: Request) {
       }
     }
   }
-
-  const customerEmail = user?.email || body.contact.email
-  sendOrderConfirmation(customerEmail, body.contact.name, orderNumber, normalizedItems, total, hasPreOrder)
 
   return NextResponse.json({
     ok: true,

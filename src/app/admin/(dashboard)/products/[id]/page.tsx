@@ -478,10 +478,10 @@ export default function AdminProductEditPage() {
             </div>
           )}
 
-          {form.preOrderEnabled && (
+          {form.preOrderEnabled && form.id && (
             <div className="mt-6 pt-6 border-t border-jet/5">
               <p className="text-[10px] font-poppins uppercase tracking-luxe text-jet/40 mb-3">Fulfillment</p>
-              <FulfillPreOrders productId={form.id!} productName={form.name} />
+              <FulfillPreOrders productId={form.id} productName={form.name} />
             </div>
           )}
         </div>
