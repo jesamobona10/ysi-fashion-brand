@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase/client"
 import { useAuth } from "@/components/auth/auth-provider"
 
 const STORAGE_KEY = "ysi_cart";
-const MERGED_KEY = "ysi_cart_merged";
 
 export interface CartItem {
   id: string;
@@ -47,22 +46,6 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
-function mergeLocalWithRemote(local: CartItem[], remote: CartItem[]): CartItem[] {
-  if (remote.length === 0) return local
-  if (local.length === 0) return remote
-
-  const merged = [...remote]
-  for (const localItem of local) {
-    const existing = merged.find((r) => r.id === localItem.id)
-    if (existing) {
-      existing.quantity = Math.max(existing.quantity, localItem.quantity)
-    } else {
-      merged.push(localItem)
-    }
-  }
-  return merged
-}
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
@@ -109,7 +92,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const isLoggedIn = !!user
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const hydrated = useRef(false)
+  const prevUserId = useRef<string | undefined>(undefined)
 
   const syncToSupabase = useCallback(async (items: CartItem[]) => {
     if (!user?.id) return
@@ -123,18 +106,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as CartItem[];
-        if (Array.isArray(parsed)) dispatch({ type: "HYDRATE", payload: parsed });
+    const currentId = user?.id
+
+    if (currentId === prevUserId.current) return
+
+    dispatch({ type: "CLEAR_CART" })
+    localStorage.removeItem(STORAGE_KEY)
+
+    prevUserId.current = currentId
+
+    if (!currentId) return
+
+    ;(async () => {
+      const { data } = await supabase.from("carts").select("items").eq("user_id", currentId).maybeSingle();
+      if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
+        dispatch({ type: "HYDRATE", payload: data.items as CartItem[] });
       }
-    } catch {}
-    hydrated.current = true
-  }, []);
+    })();
+  }, [user])
 
   useEffect(() => {
-    if (!hydrated.current) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
 
     if (isLoggedIn) {
@@ -143,35 +134,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current) }
   }, [state.items, isLoggedIn, syncToSupabase]);
-
-  useEffect(() => {
-    if (!isLoggedIn || !hydrated.current) return;
-
-    (async () => {
-      const { data } = await supabase.from("carts").select("items").eq("user_id", user.id).maybeSingle();
-      if (!data?.items) return;
-
-      const remoteItems = (data.items as CartItem[]) || [];
-      if (remoteItems.length === 0) return;
-
-      const alreadyMerged = localStorage.getItem(MERGED_KEY);
-      const localItems = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as CartItem[];
-
-      if (localItems.length > 0 && !alreadyMerged) {
-        const merged = mergeLocalWithRemote(localItems, remoteItems);
-        dispatch({ type: "HYDRATE", payload: merged });
-        localStorage.setItem(MERGED_KEY, "true");
-      } else if (localItems.length === 0) {
-        dispatch({ type: "HYDRATE", payload: remoteItems });
-      }
-    })();
-  }, [isLoggedIn, user]);
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      localStorage.removeItem(MERGED_KEY);
-    }
-  }, [isLoggedIn]);
 
   const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) =>
     dispatch({ type: "ADD_ITEM", payload: item as CartItem });
