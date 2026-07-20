@@ -32,6 +32,8 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
   const [loading, setLoading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  const onVerifyRef = useRef(onVerify)
+  onVerifyRef.current = onVerify
 
   useEffect(() => {
     return () => { mountedRef.current = false; if (timerRef.current) clearTimeout(timerRef.current) }
@@ -52,10 +54,10 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
       const token = `captcha_${Date.now()}_${challenge.answer}`
       const delay = 300 + Math.random() * 400
       timerRef.current = setTimeout(() => {
-        if (mountedRef.current) onVerify(token)
+        if (mountedRef.current) onVerifyRef.current(token)
       }, delay)
     }
-  }, [verified, challenge.answer, onVerify])
+  }, [verified, challenge.answer])
 
   function handleVerify() {
     const delay = 200 + Math.random() * 600
