@@ -132,6 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, loading: false }))
         return { ok: false, error: error?.message || "Registration failed" }
       }
+      try {
+        await supabase.from("customers").upsert({
+          id: user.id,
+          name: safeName,
+          email: safeEmail,
+          status: "active",
+        }, { onConflict: "id" })
+      } catch {}
+
       if (session) {
         setAuthCookies(session.access_token, session.refresh_token)
         setState({
