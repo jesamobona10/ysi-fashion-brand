@@ -176,6 +176,16 @@ function ShopPageInner() {
 
   const hasMore = products.length < totalProducts
 
+  useEffect(() => {
+    if (filters.search.trim().length >= 2) {
+      fetch("/api/search/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: filters.search }),
+      }).catch(() => {})
+    }
+  }, [filters.search])
+
   const filtered = useMemo(() => {
     let result = [...products]
     if (filters.search) {
@@ -249,16 +259,6 @@ function ShopPageInner() {
       </div>
     )
   }
-
-  useEffect(() => {
-    if (filters.search.trim().length >= 2) {
-      fetch("/api/search/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: filters.search }),
-      }).catch(() => {})
-    }
-  }, [filters.search])
 
   return (
     <div className="pt-[72px] lg:pt-20">
