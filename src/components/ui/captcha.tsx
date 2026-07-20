@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useCallback } from "react"
 import { RefreshCw, CheckCircle, Loader2 } from "lucide-react"
 
 interface CaptchaProps {
@@ -18,11 +18,6 @@ function generateChallenge() {
   return { a, b, op, answer }
 }
 
-const SYMBOL_OP: Record<string, string> = {
-  "+": "+",
-  "\u2212": "-",
-}
-
 export function Captcha({ onVerify, className = "" }: CaptchaProps) {
   const [challenge, setChallenge] = useState(() => generateChallenge())
   const [input, setInput] = useState("")
@@ -30,17 +25,8 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
   const [verified, setVerified] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [loading, setLoading] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const mountedRef = useRef(true)
-  const onVerifyRef = useRef(onVerify)
-  onVerifyRef.current = onVerify
 
-  useEffect(() => {
-    return () => { mountedRef.current = false; if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [])
-
-  const newChallenge = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
+  const refresh = useCallback(() => {
     setChallenge(generateChallenge())
     setInput("")
     setError(false)
@@ -49,43 +35,26 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (verified) {
-      const token = `captcha_${Date.now()}_${challenge.answer}`
-      const delay = 300 + Math.random() * 400
-      timerRef.current = setTimeout(() => {
-        if (mountedRef.current) onVerifyRef.current(token)
-      }, delay)
-    }
-  }, [verified, challenge.answer])
-
   function handleVerify() {
-    const delay = 200 + Math.random() * 600
     setLoading(true)
-    timerRef.current = setTimeout(() => {
-      if (!mountedRef.current) return
+    const num = parseInt(input, 10)
+    setTimeout(() => {
       setLoading(false)
-      const num = parseInt(input, 10)
       if (num === challenge.answer) {
         setVerified(true)
         setError(false)
+        const token = `captcha_${Date.now()}_${challenge.answer}`
+        onVerify(token)
       } else {
         setError(true)
         setAttempts((p) => p + 1)
         if (attempts >= 2) {
-          newChallenge()
+          refresh()
         } else {
           setInput("")
         }
       }
-    }, delay)
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape") {
-      setInput("")
-      setError(false)
-    }
+    }, 200 + Math.random() * 600)
   }
 
   if (verified) {
@@ -106,8 +75,7 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
         <input
           type="number"
           value={input}
-          onChange={(e) => { setInput(e.target.value); setError(false); if (timerRef.current) clearTimeout(timerRef.current) }}
-          onKeyDown={handleKeyDown}
+          onChange={(e) => { setInput(e.target.value); setError(false) }}
           className={`w-full h-10 px-3 bg-cream border text-jet text-sm font-poppins focus:outline-none focus:border-gold/50 ${error ? "border-burgundy" : "border-jet/10"}`}
           placeholder="Answer"
           aria-label="Enter the correct answer"
@@ -122,7 +90,7 @@ export function Captcha({ onVerify, className = "" }: CaptchaProps) {
           aria-label="Verify security answer">
           {loading ? <Loader2 size={12} className="animate-spin" /> : "Verify"}
         </button>
-        <button type="button" onClick={newChallenge}
+        <button type="button" onClick={refresh}
           className="h-10 w-10 flex items-center justify-center border border-jet/10 text-jet/30 hover:text-jet transition-colors shrink-0 disabled:opacity-40"
           disabled={loading}
           aria-label="Generate new security challenge">
